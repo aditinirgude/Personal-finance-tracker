@@ -38,11 +38,24 @@ const PAGE_SIZE = 10;
 
 /** Active filter state */
 const activeFilters = {
-  search:   '',
+  search: '',
   category: '',
-  type:     'all',  // 'all' | 'income' | 'expense'
+  type: 'all',  // 'all' | 'income' | 'expense'
   dateFrom: '',
-  dateTo:   '',
+  dateTo: '',
+};
+const exchangeRates = {
+  INR: 1,
+  USD: 0.0115,
+  EUR: 0.0098,
+  GBP: 0.0084
+};
+
+const currencySymbols = {
+  INR: "₹",
+  USD: "$",
+  EUR: "€",
+  GBP: "£"
 };
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -66,7 +79,9 @@ function generateId() {
  * @returns {string}  e.g. "₹1,234.56"
  */
 function formatCurrency(amount) {
-  return `${currencySymbol}${Math.abs(amount).toLocaleString('en-IN', {
+  const convertedAmount = amount * exchangeRates[selectedCurrency];
+
+  return `${currencySymbols[selectedCurrency]}${Math.abs(convertedAmount).toLocaleString('en-US', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })}`;
@@ -149,7 +164,7 @@ function _dismissToast(toast) {
  * Recalculate and re-render all four dashboard summary cards.
  */
 function updateDashboard() {
-  const totalIncome  = transactions
+  const totalIncome = transactions
     .filter(t => t.type === 'income')
     .reduce((sum, t) => sum + t.amount, 0);
 
@@ -157,18 +172,18 @@ function updateDashboard() {
     .filter(t => t.type === 'expense')
     .reduce((sum, t) => sum + t.amount, 0);
 
-  const balance      = totalIncome - totalExpense;
-  const savingsRate  = totalIncome > 0
+  const balance = totalIncome - totalExpense;
+  const savingsRate = totalIncome > 0
     ? Math.min(100, Math.max(0, (balance / totalIncome) * 100))
     : 0;
 
   // Inject values into DOM
   const el = id => document.getElementById(id);
 
-  el('total-balance').textContent  = (balance < 0 ? '−' : '') + formatCurrency(balance);
-  el('total-income').textContent   = formatCurrency(totalIncome);
-  el('total-expense').textContent  = formatCurrency(totalExpense);
-  el('total-savings').textContent  = `${savingsRate.toFixed(1)}%`;
+  el('total-balance').textContent = (balance < 0 ? '−' : '') + formatCurrency(balance);
+  el('total-income').textContent = formatCurrency(totalIncome);
+  el('total-expense').textContent = formatCurrency(totalExpense);
+  el('total-savings').textContent = `${savingsRate.toFixed(1)}%`;
 
   // Savings bar fill
   const barFill = el('savings-bar-fill');
@@ -182,7 +197,7 @@ function updateDashboard() {
 
   // Trend indicators
   _setTrend('balance-trend', balance, '+0%');
-  _setTrend('income-trend',  totalIncome,  `+${savingsRate.toFixed(0)}%`);
+  _setTrend('income-trend', totalIncome, `+${savingsRate.toFixed(0)}%`);
   _setTrend('expense-trend', -totalExpense, '');
 }
 
@@ -196,10 +211,10 @@ function _setTrend(elemId, value, label) {
   const el = document.getElementById(elemId);
   if (!el) return;
   const arrow = el.querySelector('.trend-arrow');
-  const text  = el.querySelector('.trend-text');
+  const text = el.querySelector('.trend-text');
   if (arrow) {
     arrow.textContent = value >= 0 ? '↑' : '↓';
-    arrow.className   = `trend-arrow ${value >= 0 ? 'trend--up' : 'trend--down'}`;
+    arrow.className = `trend-arrow ${value >= 0 ? 'trend--up' : 'trend--down'}`;
   }
   if (text && label) text.textContent = label;
 }
@@ -212,8 +227,8 @@ function _setTrend(elemId, value, label) {
  * Recalculate this-month totals and update the Monthly Summary sidebar card.
  */
 function updateQuickStats() {
-  const now   = new Date();
-  const year  = now.getFullYear();
+  const now = new Date();
+  const year = now.getFullYear();
   const month = now.getMonth(); // 0-indexed
 
   const thisMonth = transactions.filter(t => {
@@ -221,22 +236,22 @@ function updateQuickStats() {
     return d.getFullYear() === year && d.getMonth() === month;
   });
 
-  const mIncome  = thisMonth.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
+  const mIncome = thisMonth.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
   const mExpense = thisMonth.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
-  const mNet     = mIncome - mExpense;
+  const mNet = mIncome - mExpense;
 
   const el = id => document.getElementById(id);
 
   const monthLabel = now.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
-  if (el('qs-month'))         el('qs-month').textContent        = monthLabel;
-  if (el('qs-month-income'))  el('qs-month-income').textContent  = formatCurrency(mIncome);
+  if (el('qs-month')) el('qs-month').textContent = monthLabel;
+  if (el('qs-month-income')) el('qs-month-income').textContent = formatCurrency(mIncome);
   if (el('qs-month-expense')) el('qs-month-expense').textContent = formatCurrency(mExpense);
-  if (el('qs-count'))         el('qs-count').textContent         = thisMonth.length;
+  if (el('qs-count')) el('qs-count').textContent = thisMonth.length;
 
   const netEl = el('qs-month-net');
   if (netEl) {
     netEl.textContent = (mNet < 0 ? '−' : '') + formatCurrency(mNet);
-    netEl.className   = `qs-value ${mNet >= 0 ? 'text-income' : 'text-expense'}`;
+    netEl.className = `qs-value ${mNet >= 0 ? 'text-income' : 'text-expense'}`;
   }
 }
 
@@ -301,14 +316,14 @@ function _renderMonthlyChart() {
 
   // Build array of last 6 months (most recent last)
   const months = [];
-  const now    = new Date();
+  const now = new Date();
   for (let i = 5; i >= 0; i--) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
     months.push({
-      year:  d.getFullYear(),
+      year: d.getFullYear(),
       month: d.getMonth(),
       label: d.toLocaleDateString('en-IN', { month: 'short' }),
-      income:  0,
+      income: 0,
       expense: 0,
     });
   }
@@ -317,7 +332,7 @@ function _renderMonthlyChart() {
     const d = new Date(t.date + 'T00:00:00');
     const m = months.find(m => m.year === d.getFullYear() && m.month === d.getMonth());
     if (!m) return;
-    if (t.type === 'income')  m.income  += t.amount;
+    if (t.type === 'income') m.income += t.amount;
     if (t.type === 'expense') m.expense += t.amount;
   });
 
@@ -335,9 +350,9 @@ function _renderMonthlyChart() {
   chartEl.innerHTML = `
     <div class="monthly-chart-bars">
       ${months.map(m => {
-        const inPct  = ((m.income  / maxVal) * 100).toFixed(1);
-        const exPct  = ((m.expense / maxVal) * 100).toFixed(1);
-        return `
+    const inPct = ((m.income / maxVal) * 100).toFixed(1);
+    const exPct = ((m.expense / maxVal) * 100).toFixed(1);
+    return `
           <div class="mc-group">
             <div class="mc-bars">
               <div class="mc-bar mc-bar--income"  style="height:${inPct}%" title="Income: ${formatCurrency(m.income)}"></div>
@@ -345,7 +360,7 @@ function _renderMonthlyChart() {
             </div>
             <span class="mc-label">${m.label}</span>
           </div>`;
-      }).join('')}
+  }).join('')}
     </div>
     <div class="mc-legend">
       <span class="mc-legend-item mc-legend--income">● Income</span>
@@ -356,7 +371,7 @@ function _renderMonthlyChart() {
 /** Render the Financial Health score circle and tips */
 function _renderHealthScore() {
   const scoreEl = document.getElementById('health-score-text');
-  const tipsEl  = document.getElementById('health-tips');
+  const tipsEl = document.getElementById('health-tips');
   const circleEl = document.getElementById('health-circle');
   if (!scoreEl || !tipsEl || !circleEl) return;
 
@@ -367,44 +382,44 @@ function _renderHealthScore() {
     return;
   }
 
-  const totalIncome  = transactions.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
+  const totalIncome = transactions.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
   const totalExpense = transactions.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
-  const balance      = totalIncome - totalExpense;
-  const savingsRate  = totalIncome > 0 ? (balance / totalIncome) * 100 : 0;
+  const balance = totalIncome - totalExpense;
+  const savingsRate = totalIncome > 0 ? (balance / totalIncome) * 100 : 0;
   const expenseRatio = totalIncome > 0 ? (totalExpense / totalIncome) * 100 : 100;
 
   // Score: 0–100
   let score = 50;
-  if (savingsRate >= 20)        score += 30;
-  else if (savingsRate >= 10)   score += 15;
-  else if (savingsRate > 0)     score += 5;
-  else if (savingsRate < 0)     score -= 20;
+  if (savingsRate >= 20) score += 30;
+  else if (savingsRate >= 10) score += 15;
+  else if (savingsRate > 0) score += 5;
+  else if (savingsRate < 0) score -= 20;
 
-  if (expenseRatio <= 50)       score += 20;
-  else if (expenseRatio <= 70)  score += 10;
-  else if (expenseRatio <= 90)  score += 0;
-  else                          score -= 10;
+  if (expenseRatio <= 50) score += 20;
+  else if (expenseRatio <= 70) score += 10;
+  else if (expenseRatio <= 90) score += 0;
+  else score -= 10;
 
   score = Math.min(100, Math.max(0, score));
 
   let grade, gradeClass, tips;
   if (score >= 80) {
     grade = '🌟 Excellent'; gradeClass = 'health-circle--excellent';
-    tips  = ['✅ Great savings habit! Keep it up.', '📈 Consider investing your surplus.'];
+    tips = ['✅ Great savings habit! Keep it up.', '📈 Consider investing your surplus.'];
   } else if (score >= 60) {
     grade = '👍 Good'; gradeClass = 'health-circle--good';
-    tips  = ['💡 Try to save at least 20% of your income.', '🎯 Set a monthly budget for discretionary spending.'];
+    tips = ['💡 Try to save at least 20% of your income.', '🎯 Set a monthly budget for discretionary spending.'];
   } else if (score >= 40) {
     grade = '⚠️ Fair'; gradeClass = 'health-circle--fair';
-    tips  = ['⚠️ Expenses are high relative to income.', '✂️ Review your top spending categories.'];
+    tips = ['⚠️ Expenses are high relative to income.', '✂️ Review your top spending categories.'];
   } else {
     grade = '🔴 Critical'; gradeClass = 'health-circle--critical';
-    tips  = ['🚨 Spending exceeds income — act now.', '📋 Create a strict budget and stick to it.'];
+    tips = ['🚨 Spending exceeds income — act now.', '📋 Create a strict budget and stick to it.'];
   }
 
   scoreEl.textContent = `${score}`;
-  circleEl.className  = `health-circle ${gradeClass}`;
-  tipsEl.innerHTML    = tips.map(t => `<li class="health-tip">${t}</li>`).join('');
+  circleEl.className = `health-circle ${gradeClass}`;
+  tipsEl.innerHTML = tips.map(t => `<li class="health-tip">${t}</li>`).join('');
 
   // Add grade label below score
   let gradeLabel = circleEl.querySelector('.health-grade-label');
@@ -435,11 +450,11 @@ function _categoryEmoji(cat) {
  * @param {Array} filtered — already-filtered transaction array
  */
 function renderTransactions(filtered) {
-  const tbody          = document.getElementById('transactions-tbody');
-  const emptyState     = document.getElementById('empty-state');
+  const tbody = document.getElementById('transactions-tbody');
+  const emptyState = document.getElementById('empty-state');
   const noResultsState = document.getElementById('no-results-state');
-  const countBadge     = document.getElementById('txn-count-badge');
-  const loadMoreWrap   = document.getElementById('load-more-wrap');
+  const countBadge = document.getElementById('txn-count-badge');
+  const loadMoreWrap = document.getElementById('load-more-wrap');
   if (!tbody) return;
 
   // Sort by date descending, then by createdAt descending for same-day stability
@@ -454,9 +469,9 @@ function renderTransactions(filtered) {
 
   // Empty / no-results states
   const hasTransactions = transactions.length > 0;
-  const hasResults      = sorted.length > 0;
+  const hasResults = sorted.length > 0;
 
-  emptyState.hidden     = hasTransactions || hasResults;
+  emptyState.hidden = hasTransactions || hasResults;
   noResultsState.hidden = !(hasTransactions && !hasResults);
 
   if (!hasResults) {
@@ -466,7 +481,7 @@ function renderTransactions(filtered) {
   }
 
   // Render up to visibleCount rows
-  const slice    = sorted.slice(0, visibleCount);
+  const slice = sorted.slice(0, visibleCount);
   tbody.innerHTML = slice.map(t => _buildRow(t)).join('');
 
   // Load More
@@ -481,11 +496,11 @@ function renderTransactions(filtered) {
  * @returns {string}
  */
 function _buildRow(t) {
-  const sign       = t.type === 'income' ? '+' : '−';
-  const amountCls  = t.type === 'income' ? 'amount--income' : 'amount--expense';
-  const typeCls    = t.type === 'income' ? 'badge--income'  : 'badge--expense';
-  const typeLabel  = t.type === 'income' ? '📈 Income'      : '📉 Expense';
-  const notesAttr  = t.notes ? ` title="${_escapeHtml(t.notes)}"` : '';
+  const sign = t.type === 'income' ? '+' : '−';
+  const amountCls = t.type === 'income' ? 'amount--income' : 'amount--expense';
+  const typeCls = t.type === 'income' ? 'badge--income' : 'badge--expense';
+  const typeLabel = t.type === 'income' ? '📈 Income' : '📉 Expense';
+  const notesAttr = t.notes ? ` title="${_escapeHtml(t.notes)}"` : '';
 
   return `
     <tr class="txn-row" data-id="${t.id}">
@@ -549,13 +564,13 @@ function applyFilters() {
     if (type !== 'all' && t.type !== type) return false;
     // Date range filter
     if (dateFrom && t.date < dateFrom) return false;
-    if (dateTo   && t.date > dateTo)   return false;
+    if (dateTo && t.date > dateTo) return false;
     return true;
   });
 
   // Update filter status bar
   const filterStatus = document.getElementById('filter-status');
-  const filterText   = document.getElementById('filter-status-text');
+  const filterText = document.getElementById('filter-status-text');
   const hasActiveFilters = q || category || type !== 'all' || dateFrom || dateTo;
 
   if (filterStatus) {
@@ -593,7 +608,7 @@ function validateForm() {
   // Title
   const titleInput = document.getElementById('txn-title');
   const titleError = document.getElementById('title-error');
-  const titleVal   = titleInput ? titleInput.value.trim() : '';
+  const titleVal = titleInput ? titleInput.value.trim() : '';
   if (!titleVal) {
     _showError(titleError, 'Please enter a transaction title.');
     if (titleInput) titleInput.setAttribute('aria-invalid', 'true');
@@ -606,7 +621,7 @@ function validateForm() {
   // Amount
   const amountInput = document.getElementById('txn-amount');
   const amountError = document.getElementById('amount-error');
-  const amountVal   = amountInput ? parseFloat(amountInput.value) : NaN;
+  const amountVal = amountInput ? parseFloat(amountInput.value) : NaN;
   if (isNaN(amountVal) || amountVal <= 0) {
     _showError(amountError, 'Please enter a valid positive amount.');
     if (amountInput) amountInput.setAttribute('aria-invalid', 'true');
@@ -631,7 +646,7 @@ function validateForm() {
   // Date
   const dateInput = document.getElementById('txn-date');
   const dateError = document.getElementById('date-error');
-  const dateVal   = dateInput ? dateInput.value : '';
+  const dateVal = dateInput ? dateInput.value : '';
   if (!dateVal) {
     _showError(dateError, 'Please select a valid date.');
     if (dateInput) dateInput.setAttribute('aria-invalid', 'true');
@@ -670,12 +685,12 @@ function handleFormSubmit(e) {
 
   // Read form values
   const activeTypeBtn = document.querySelector('.type-btn.active');
-  const type          = activeTypeBtn ? activeTypeBtn.dataset.type : 'income';
-  const title         = document.getElementById('txn-title').value.trim();
-  const amount        = parseFloat(document.getElementById('txn-amount').value);
-  const category      = document.getElementById('txn-category').value;
-  const date          = document.getElementById('txn-date').value;
-  const notes         = document.getElementById('txn-notes').value.trim();
+  const type = activeTypeBtn ? activeTypeBtn.dataset.type : 'income';
+  const title = document.getElementById('txn-title').value.trim();
+  const amount = parseFloat(document.getElementById('txn-amount').value);
+  const category = document.getElementById('txn-category').value;
+  const date = document.getElementById('txn-date').value;
+  const notes = document.getElementById('txn-notes').value.trim();
 
   if (editingId) {
     // UPDATE existing transaction
@@ -688,7 +703,7 @@ function handleFormSubmit(e) {
   } else {
     // CREATE new transaction
     const newTxn = {
-      id:        generateId(),
+      id: generateId(),
       title,
       amount,
       type,
@@ -734,12 +749,12 @@ function clearForm() {
   // Reset form heading
   const formTitleText = document.getElementById('form-title-text');
   const formTitleIcon = document.getElementById('form-title-icon');
-  const submitText    = document.getElementById('submit-text');
-  const submitIcon    = document.getElementById('submit-icon');
+  const submitText = document.getElementById('submit-text');
+  const submitIcon = document.getElementById('submit-icon');
   if (formTitleText) formTitleText.textContent = 'Add Transaction';
   if (formTitleIcon) formTitleIcon.textContent = '➕';
-  if (submitText)    submitText.textContent     = 'Add Transaction';
-  if (submitIcon)    submitIcon.textContent     = '➕';
+  if (submitText) submitText.textContent = 'Add Transaction';
+  if (submitIcon) submitIcon.textContent = '➕';
 
   // Update currency prefix
   const currencyPrefix = document.getElementById('currency-prefix');
@@ -773,11 +788,11 @@ function startEdit(id) {
   editingId = id;
 
   // Populate form fields
-  document.getElementById('txn-title').value    = txn.title;
-  document.getElementById('txn-amount').value   = txn.amount;
+  document.getElementById('txn-title').value = txn.title;
+  document.getElementById('txn-amount').value = txn.amount;
   document.getElementById('txn-category').value = txn.category;
-  document.getElementById('txn-date').value     = txn.date;
-  document.getElementById('txn-notes').value    = txn.notes || '';
+  document.getElementById('txn-date').value = txn.date;
+  document.getElementById('txn-notes').value = txn.notes || '';
 
   // Set type toggle
   document.querySelectorAll('.type-btn').forEach(b => {
@@ -789,12 +804,12 @@ function startEdit(id) {
   // Update form heading to edit mode
   const formTitleText = document.getElementById('form-title-text');
   const formTitleIcon = document.getElementById('form-title-icon');
-  const submitText    = document.getElementById('submit-text');
-  const submitIcon    = document.getElementById('submit-icon');
+  const submitText = document.getElementById('submit-text');
+  const submitIcon = document.getElementById('submit-icon');
   if (formTitleText) formTitleText.textContent = 'Edit Transaction';
   if (formTitleIcon) formTitleIcon.textContent = '✏️';
-  if (submitText)    submitText.textContent     = 'Update Transaction';
-  if (submitIcon)    submitIcon.textContent     = '✏️';
+  if (submitText) submitText.textContent = 'Update Transaction';
+  if (submitIcon) submitIcon.textContent = '✏️';
 
   // Scroll the form into view (helpful on mobile)
   const formCard = document.querySelector('.form-card');
@@ -851,7 +866,7 @@ function confirmDelete() {
    ═══════════════════════════════════════════════════════════════════════════ */
 
 function updateClock() {
-  const now    = new Date();
+  const now = new Date();
   const dateEl = document.getElementById('live-date');
   const timeEl = document.getElementById('live-time');
   if (dateEl) {
@@ -928,7 +943,7 @@ function init() {
   if (clearFormBtn) clearFormBtn.addEventListener('click', clearForm);
 
   /* ─────────────────────── SEARCH & FILTERS ─────────────────── */
-  const searchInput    = document.getElementById('search-input');
+  const searchInput = document.getElementById('search-input');
   const searchClearBtn = document.getElementById('search-clear-btn');
 
   if (searchInput) {
@@ -968,7 +983,7 @@ function init() {
 
   /* ── Date range filters ── */
   const dateFromEl = document.getElementById('filter-date-from');
-  const dateToEl   = document.getElementById('filter-date-to');
+  const dateToEl = document.getElementById('filter-date-to');
   if (dateFromEl) {
     dateFromEl.addEventListener('change', function () {
       activeFilters.dateFrom = this.value;
@@ -987,9 +1002,9 @@ function init() {
   if (clearDateBtn) {
     clearDateBtn.addEventListener('click', function () {
       if (dateFromEl) dateFromEl.value = '';
-      if (dateToEl)   dateToEl.value   = '';
+      if (dateToEl) dateToEl.value = '';
       activeFilters.dateFrom = '';
-      activeFilters.dateTo   = '';
+      activeFilters.dateTo = '';
       applyFilters();
     });
   }
@@ -998,16 +1013,16 @@ function init() {
   const resetAllBtn = document.getElementById('reset-all-filters');
   if (resetAllBtn) {
     resetAllBtn.addEventListener('click', function () {
-      if (searchInput)    searchInput.value = '';
+      if (searchInput) searchInput.value = '';
       if (searchClearBtn) searchClearBtn.hidden = true;
-      if (catFilterEl)    catFilterEl.value = '';
-      if (dateFromEl)     dateFromEl.value  = '';
-      if (dateToEl)       dateToEl.value    = '';
-      activeFilters.search   = '';
+      if (catFilterEl) catFilterEl.value = '';
+      if (dateFromEl) dateFromEl.value = '';
+      if (dateToEl) dateToEl.value = '';
+      activeFilters.search = '';
       activeFilters.category = '';
-      activeFilters.type     = 'all';
+      activeFilters.type = 'all';
       activeFilters.dateFrom = '';
-      activeFilters.dateTo   = '';
+      activeFilters.dateTo = '';
       document.querySelectorAll('.filter-type-btn').forEach((b, i) => {
         b.classList.toggle('active', i === 0);
       });
@@ -1021,9 +1036,9 @@ function init() {
   const tbody = document.getElementById('transactions-tbody');
   if (tbody) {
     tbody.addEventListener('click', function (e) {
-      const editBtn   = e.target.closest('.btn-edit');
+      const editBtn = e.target.closest('.btn-edit');
       const deleteBtn = e.target.closest('.btn-delete');
-      if (editBtn)   startEdit(editBtn.dataset.id);
+      if (editBtn) startEdit(editBtn.dataset.id);
       if (deleteBtn) requestDelete(deleteBtn.dataset.id);
     });
   }
@@ -1038,7 +1053,7 @@ function init() {
   }
 
   /* ─────────────────────── CONFIRM MODAL ─────────────────────── */
-  const confirmModal     = document.getElementById('confirm-modal');
+  const confirmModal = document.getElementById('confirm-modal');
   const confirmCancelBtn = document.getElementById('confirm-cancel-btn');
   const confirmDeleteBtn = document.getElementById('confirm-delete-btn');
 
@@ -1064,11 +1079,11 @@ function init() {
       )];
       if (!focusable.length) return;
       const first = focusable[0];
-      const last  = focusable[focusable.length - 1];
+      const last = focusable[focusable.length - 1];
       if (e.shiftKey) {
         if (document.activeElement === first) { e.preventDefault(); last.focus(); }
       } else {
-        if (document.activeElement === last)  { e.preventDefault(); first.focus(); }
+        if (document.activeElement === last) { e.preventDefault(); first.focus(); }
       }
     });
   }
@@ -1083,9 +1098,9 @@ function init() {
   const themeToggleBtn = document.getElementById('theme-toggle-btn');
   if (themeToggleBtn) {
     themeToggleBtn.addEventListener('click', function () {
-      const html   = document.documentElement;
+      const html = document.documentElement;
       const isDark = html.getAttribute('data-theme') === 'dark';
-      const next   = isDark ? 'light' : 'dark';
+      const next = isDark ? 'light' : 'dark';
       html.setAttribute('data-theme', next);
       setStoredTheme(next); // Phase 3: persist theme preference
     });
