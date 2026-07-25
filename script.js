@@ -44,28 +44,6 @@ const activeFilters = {
   dateFrom: '',
   dateTo: '',
 };
-const exchangeRates = {
-  INR: 1,
-  USD: 0.0115,
-  EUR: 0.0098,
-  GBP: 0.0084
-};
-
-const currencySymbols = {
-  INR: "₹",
-  USD: "$",
-  EUR: "€",
-  GBP: "£"
-};
-
-const currencySelect = document.getElementById("currency-select");
-
-currencySelect.addEventListener("change", () => {
-  selectedCurrency = currencySelect.value;
-
-  updateDashboard();
-  renderTransactions();
-});
 
 /* ═══════════════════════════════════════════════════════════════════════════
    2. UTILITY HELPERS
@@ -88,9 +66,7 @@ function generateId() {
  * @returns {string}  e.g. "₹1,234.56"
  */
 function formatCurrency(amount) {
-  const convertedAmount = amount * exchangeRates[selectedCurrency];
-
-  return `${currencySymbols[selectedCurrency]}${Math.abs(convertedAmount).toLocaleString('en-US', {
+  return `${currencySymbol}${Math.abs(amount).toLocaleString('en-IN', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })}`;
