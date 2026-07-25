@@ -57,7 +57,7 @@ const currencySymbols = {
   EUR: "€",
   GBP: "£"
 };
-let selectedCurrency = "INR";
+
 const currencySelect = document.getElementById("currency-select");
 
 currencySelect.addEventListener("change", () => {
