@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Personal Finance Tracker – Manage your income and expenses effortlessly with this beginner-friendly web app built using HTML, CSS, and JavaScript." />
+  <meta name="keywords" content="personal finance, expense tracker, budget manager, income tracker, web app" />
+  <meta name="author" content="Personal Finance Tracker" />
+  <title>💰 Personal Finance Tracker</title>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <!-- Main Stylesheet -->
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- ===== TOAST NOTIFICATION AREA ===== -->
+  <div id="toast-container" class="toast-container" aria-live="polite" aria-atomic="true"></div>
+
+  <!-- ===== CONFIRMATION DIALOG MODAL ===== -->
+  <div id="confirm-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="confirm-title" hidden>
+    <div class="modal-box">
+      <div class="modal-icon">🗑️</div>
+      <h2 id="confirm-title" class="modal-title">Delete Transaction?</h2>
+      <p class="modal-message">This action cannot be undone. Are you sure you want to delete this transaction?</p>
+      <div class="modal-actions">
+        <button id="confirm-cancel-btn" class="btn btn-secondary" type="button">Cancel</button>
+        <button id="confirm-delete-btn" class="btn btn-danger" type="button">Yes, Delete</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== APP WRAPPER ===== -->
+  <div class="app-wrapper">
+
+    <!-- ===== HEADER ===== -->
+    <header class="header" role="banner">
+      <div class="container header-inner">
+
+        <!-- Logo & Branding -->
+        <div class="header-brand">
+          <div class="brand-logo" aria-hidden="true">💰</div>
+          <div class="brand-text">
+            <h1 class="brand-title">Finance Tracker</h1>
+            <span class="brand-subtitle">Personal Budget Manager</span>
+          </div>
+        </div>
+
+        <!-- Header Center: Live Date & Time -->
+        <div class="header-center" aria-label="Current date and time">
+          <div class="live-datetime">
+            <span id="live-date" class="live-date"></span>
+            <span id="live-time" class="live-time"></span>
+          </div>
+        </div>
+
+        <!-- Header Actions -->
+        <div class="header-actions">
+          <!-- Currency Selector -->
+          <div class="currency-selector-wrap">
+            <label for="currency-select" class="visually-hidden">Currency</label>
+            <select id="currency-select" class="currency-select" title="Select Currency">
+              <option value="₹">₹ INR</option>
+              <option value="$">$ USD</option>
+              <option value="€">€ EUR</option>
+              <option value="£">£ GBP</option>
+            </select>
+          </div>
+
+          <!-- Dark/Light Mode Toggle -->
+          <button id="theme-toggle-btn" class="theme-toggle" type="button" title="Toggle Dark/Light Mode" aria-label="Toggle dark mode">
+            <span class="theme-icon theme-icon--sun" aria-hidden="true">☀️</span>
+            <span class="theme-icon theme-icon--moon" aria-hidden="true">🌙</span>
+            <span class="theme-toggle-thumb"></span>
+          </button>
+        </div>
+
+      </div>
+    </header>
+    <!-- /HEADER -->
+
+    <!-- ===== MAIN CONTENT ===== -->
+    <main class="main-content" role="main">
+      <div class="container">
+
+        <!-- ===== DASHBOARD CARDS ===== -->
+        <section class="dashboard-section" aria-label="Financial Summary">
+          <div class="dashboard-grid">
+
+            <!-- Total Balance Card -->
+            <article class="dashboard-card card--balance" id="card-balance" aria-label="Total Balance">
+              <div class="card-icon card-icon--balance" aria-hidden="true">💳</div>
+              <div class="card-body">
+                <span class="card-label">Total Balance</span>
+                <span id="total-balance" class="card-amount card-amount--balance">₹0.00</span>
+              </div>
+              <div class="card-trend" id="balance-trend" aria-hidden="true">
+                <span class="trend-arrow">↑</span>
+                <span class="trend-text">+0%</span>
+              </div>
+            </article>
+
+            <!-- Total Income Card -->
+            <article class="dashboard-card card--income" id="card-income" aria-label="Total Income">
+              <div class="card-icon card-icon--income" aria-hidden="true">📈</div>
+              <div class="card-body">
+                <span class="card-label">Total Income</span>
+                <span id="total-income" class="card-amount card-amount--income">₹0.00</span>
+              </div>
+              <div class="card-trend" id="income-trend" aria-hidden="true">
+                <span class="trend-arrow trend--up">↑</span>
+                <span class="trend-text">+0%</span>
+              </div>
+            </article>
+
+            <!-- Total Expenses Card -->
+            <article class="dashboard-card card--expense" id="card-expense" aria-label="Total Expenses">
+              <div class="card-icon card-icon--expense" aria-hidden="true">📉</div>
+              <div class="card-body">
+                <span class="card-label">Total Expenses</span>
+                <span id="total-expense" class="card-amount card-amount--expense">₹0.00</span>
+              </div>
+              <div class="card-trend" id="expense-trend" aria-hidden="true">
+                <span class="trend-arrow trend--down">↓</span>
+                <span class="trend-text">+0%</span>
+              </div>
+            </article>
+
+            <!-- Savings Card -->
+            <article class="dashboard-card card--savings" id="card-savings" aria-label="Savings Rate">
+              <div class="card-icon card-icon--savings" aria-hidden="true">🏦</div>
+              <div class="card-body">
+                <span class="card-label">Savings Rate</span>
+                <span id="total-savings" class="card-amount card-amount--savings">0%</span>
+              </div>
+              <div class="savings-bar-wrap" aria-hidden="true">
+                <div class="savings-bar">
+                  <div id="savings-bar-fill" class="savings-bar-fill" style="width: 0%"></div>
+                </div>
+              </div>
+            </article>
+
+          </div>
+        </section>
+        <!-- /DASHBOARD CARDS -->
+
+        <!-- ===== MAIN TWO-COLUMN LAYOUT ===== -->
+        <div class="main-layout">
+
+          <!-- ===== LEFT COLUMN: TRANSACTION FORM ===== -->
+          <aside class="sidebar" aria-label="Transaction Entry Panel">
+
+            <!-- Add/Edit Transaction Form Card -->
+            <section class="card form-card" aria-labelledby="form-heading">
+              <div class="card-header">
+                <h2 id="form-heading" class="section-title">
+                  <span id="form-title-icon" aria-hidden="true">➕</span>
+                  <span id="form-title-text">Add Transaction</span>
+                </h2>
+              </div>
+
+              <form id="transaction-form" class="transaction-form" novalidate aria-label="Transaction entry form">
+                <!-- Hidden ID for edit mode -->
+                <input type="hidden" id="edit-id" value="" />
+
+                <!-- Transaction Type Toggle -->
+                <div class="form-group">
+                  <label class="form-label" id="type-toggle-label">Transaction Type</label>
+                  <div class="type-toggle" role="radiogroup" aria-labelledby="type-toggle-label">
+                    <button type="button" id="type-income" class="type-btn type-btn--income active" aria-pressed="true" data-type="income">
+                      <span aria-hidden="true">📈</span> Income
+                    </button>
+                    <button type="button" id="type-expense" class="type-btn type-btn--expense" aria-pressed="false" data-type="expense">
+                      <span aria-hidden="true">📉</span> Expense
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Title Input -->
+                <div class="form-group">
+                  <label for="txn-title" class="form-label">Title <span class="required" aria-hidden="true">*</span></label>
+                  <input
+                    type="text"
+                    id="txn-title"
+                    class="form-input"
+                    placeholder="e.g. Monthly Salary, Grocery Bill…"
+                    maxlength="80"
+                    autocomplete="off"
+                    aria-required="true"
+                  />
+                  <span id="title-error" class="form-error" role="alert" hidden>Please enter a transaction title.</span>
+                </div>
+
+                <!-- Amount Input -->
+                <div class="form-group">
+                  <label for="txn-amount" class="form-label">Amount <span class="required" aria-hidden="true">*</span></label>
+                  <div class="input-prefix-wrap">
+                    <span id="currency-prefix" class="input-prefix" aria-hidden="true">₹</span>
+                    <input
+                      type="number"
+                      id="txn-amount"
+                      class="form-input with-prefix"
+                      placeholder="0.00"
+                      min="0.01"
+                      step="0.01"
+                      aria-required="true"
+                    />
+                  </div>
+                  <span id="amount-error" class="form-error" role="alert" hidden>Please enter a valid positive amount.</span>
+                </div>
+
+                <!-- Category Select -->
+                <div class="form-group">
+                  <label for="txn-category" class="form-label">Category <span class="required" aria-hidden="true">*</span></label>
+                  <select id="txn-category" class="form-input form-select" aria-required="true">
+                    <option value="">— Select a Category —</option>
+                    <optgroup label="💰 Income">
+                      <option value="Salary">💼 Salary</option>
+                      <option value="Freelance">🖥️ Freelance</option>
+                      <option value="Investments">📊 Investments</option>
+                      <option value="Gifts">🎁 Gifts</option>
+                      <option value="Other Income">💡 Other Income</option>
+                    </optgroup>
+                    <optgroup label="💸 Expenses">
+                      <option value="Food">🍔 Food & Dining</option>
+                      <option value="Rent">🏠 Rent & Housing</option>
+                      <option value="Transport">🚗 Transport</option>
+                      <option value="Shopping">🛍️ Shopping</option>
+                      <option value="Bills">💡 Bills & Utilities</option>
+                      <option value="Healthcare">🏥 Healthcare</option>
+                      <option value="Entertainment">🎮 Entertainment</option>
+                      <option value="Education">📚 Education</option>
+                      <option value="Others">📦 Others</option>
+                    </optgroup>
+                  </select>
+                  <span id="category-error" class="form-error" role="alert" hidden>Please select a category.</span>
+                </div>
+
+                <!-- Date Input -->
+                <div class="form-group">
+                  <label for="txn-date" class="form-label">Date <span class="required" aria-hidden="true">*</span></label>
+                  <input
+                    type="date"
+                    id="txn-date"
+                    class="form-input"
+                    aria-required="true"
+                  />
+                  <span id="date-error" class="form-error" role="alert" hidden>Please select a valid date.</span>
+                </div>
+
+                <!-- Notes (Optional) -->
+                <div class="form-group">
+                  <label for="txn-notes" class="form-label">Notes <span class="optional">(Optional)</span></label>
+                  <textarea
+                    id="txn-notes"
+                    class="form-input form-textarea"
+                    placeholder="Add a short note about this transaction…"
+                    rows="2"
+                    maxlength="200"
+                  ></textarea>
+                </div>
+
+                <!-- Form Action Buttons -->
+                <div class="form-actions">
+                  <button type="button" id="clear-form-btn" class="btn btn-secondary btn-full">
+                    <span aria-hidden="true">✕</span> Clear
+                  </button>
+                  <button type="submit" id="submit-btn" class="btn btn-primary btn-full">
+                    <span id="submit-icon" aria-hidden="true">➕</span>
+                    <span id="submit-text">Add Transaction</span>
+                  </button>
+                </div>
+              </form>
+            </section>
+            <!-- /FORM CARD -->
+
+            <!-- Quick Stats Card (Mini Summary) -->
+            <section class="card quick-stats-card" aria-labelledby="quick-stats-heading">
+              <div class="card-header">
+                <h2 id="quick-stats-heading" class="section-title">
+                  <span aria-hidden="true">📊</span> Monthly Summary
+                </h2>
+              </div>
+              <ul class="quick-stats-list" aria-label="Monthly financial summary">
+                <li class="quick-stat-item">
+                  <span class="qs-label">🗓️ This Month</span>
+                  <span id="qs-month" class="qs-value">—</span>
+                </li>
+                <li class="quick-stat-item">
+                  <span class="qs-label">📈 Month Income</span>
+                  <span id="qs-month-income" class="qs-value text-income">₹0.00</span>
+                </li>
+                <li class="quick-stat-item">
+                  <span class="qs-label">📉 Month Expense</span>
+                  <span id="qs-month-expense" class="qs-value text-expense">₹0.00</span>
+                </li>
+                <li class="quick-stat-item">
+                  <span class="qs-label">💳 Net This Month</span>
+                  <span id="qs-month-net" class="qs-value">₹0.00</span>
+                </li>
+                <li class="quick-stat-item">
+                  <span class="qs-label">🔢 Transactions</span>
+                  <span id="qs-count" class="qs-value">0</span>
+                </li>
+              </ul>
+            </section>
+            <!-- /QUICK STATS CARD -->
+
+          </aside>
+          <!-- /LEFT COLUMN -->
+
+          <!-- ===== RIGHT COLUMN: TRANSACTIONS ===== -->
+          <section class="content-area" aria-label="Transactions panel">
+
+            <!-- Search & Filter Bar -->
+            <div class="card filter-card" aria-label="Search and filter transactions">
+              <div class="filter-row filter-row--top">
+
+                <!-- Search -->
+                <div class="search-wrap">
+                  <label for="search-input" class="visually-hidden">Search Transactions</label>
+                  <span class="search-icon" aria-hidden="true">🔍</span>
+                  <input
+                    type="search"
+                    id="search-input"
+                    class="form-input search-input"
+                    placeholder="Search transactions…"
+                    autocomplete="off"
+                    aria-label="Search transactions by title"
+                  />
+                  <button id="search-clear-btn" class="search-clear-btn" type="button" title="Clear search" hidden aria-label="Clear search">✕</button>
+                </div>
+
+                <!-- Category Filter -->
+                <div class="filter-select-wrap">
+                  <label for="filter-category" class="visually-hidden">Filter by Category</label>
+                  <select id="filter-category" class="form-input form-select filter-select" aria-label="Filter by category">
+                    <option value="">🏷️ All Categories</option>
+                    <option value="Salary">💼 Salary</option>
+                    <option value="Freelance">🖥️ Freelance</option>
+                    <option value="Investments">📊 Investments</option>
+                    <option value="Gifts">🎁 Gifts</option>
+                    <option value="Other Income">💡 Other Income</option>
+                    <option value="Food">🍔 Food & Dining</option>
+                    <option value="Rent">🏠 Rent</option>
+                    <option value="Transport">🚗 Transport</option>
+                    <option value="Shopping">🛍️ Shopping</option>
+                    <option value="Bills">💡 Bills</option>
+                    <option value="Healthcare">🏥 Healthcare</option>
+                    <option value="Entertainment">🎮 Entertainment</option>
+                    <option value="Education">📚 Education</option>
+                    <option value="Others">📦 Others</option>
+                  </select>
+                </div>
+
+              </div>
+
+              <div class="filter-row filter-row--bottom">
+
+                <!-- Type Filter Buttons -->
+                <div class="type-filter-group" role="group" aria-label="Filter by transaction type">
+                  <button type="button" id="filter-all" class="filter-type-btn active" data-filter="all">All</button>
+                  <button type="button" id="filter-income" class="filter-type-btn" data-filter="income">📈 Income</button>
+                  <button type="button" id="filter-expense" class="filter-type-btn" data-filter="expense">📉 Expense</button>
+                </div>
+
+                <!-- Date Filter -->
+                <div class="date-filter-wrap">
+                  <div class="date-filter-inputs">
+                    <label for="filter-date-from" class="visually-hidden">From date</label>
+                    <input type="date" id="filter-date-from" class="form-input date-input" title="Filter from date" aria-label="Filter from date" />
+                    <span class="date-separator" aria-hidden="true">→</span>
+                    <label for="filter-date-to" class="visually-hidden">To date</label>
+                    <input type="date" id="filter-date-to" class="form-input date-input" title="Filter to date" aria-label="Filter to date" />
+                  </div>
+                  <button type="button" id="clear-date-filter" class="btn btn-ghost btn-sm" title="Clear date filter">Clear Dates</button>
+                </div>
+
+              </div>
+
+              <!-- Active Filters Count -->
+              <div id="filter-status" class="filter-status" hidden>
+                <span id="filter-status-text" class="filter-status-text">Showing all transactions</span>
+                <button type="button" id="reset-all-filters" class="btn btn-ghost btn-sm">Reset Filters</button>
+              </div>
+            </div>
+            <!-- /FILTER BAR -->
+
+            <!-- Transaction List Card -->
+            <div class="card transactions-card">
+              <div class="card-header transactions-header">
+                <h2 class="section-title">
+                  <span aria-hidden="true">🕒</span> Recent Transactions
+                </h2>
+                <span id="txn-count-badge" class="count-badge" aria-label="Number of transactions">0 entries</span>
+              </div>
+
+              <!-- Table (Desktop) -->
+              <div class="transactions-table-wrap" role="region" aria-label="Transactions table" tabindex="0">
+                <table class="transactions-table" id="transactions-table" aria-label="Transactions list">
+                  <thead>
+                    <tr>
+                      <th scope="col" class="th-title">Title / Category</th>
+                      <th scope="col" class="th-date">Date</th>
+                      <th scope="col" class="th-type">Type</th>
+                      <th scope="col" class="th-amount">Amount</th>
+                      <th scope="col" class="th-actions">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="transactions-tbody">
+                    <!-- JS will inject rows here -->
+                  </tbody>
+                </table>
+              </div>
+
+              <!-- Empty State -->
+              <div id="empty-state" class="empty-state" aria-live="polite">
+                <div class="empty-state-illustration" aria-hidden="true">💸</div>
+                <h3 class="empty-state-title">No transactions yet</h3>
+                <p class="empty-state-desc">Add your first income or expense using the form on the left to get started.</p>
+              </div>
+
+              <!-- No Results State -->
+              <div id="no-results-state" class="empty-state" hidden aria-live="polite">
+                <div class="empty-state-illustration" aria-hidden="true">🔍</div>
+                <h3 class="empty-state-title">No results found</h3>
+                <p class="empty-state-desc">Try adjusting your search or filter criteria.</p>
+              </div>
+
+              <!-- Load More -->
+              <div class="load-more-wrap" id="load-more-wrap" hidden>
+                <button type="button" id="load-more-btn" class="btn btn-ghost">Load More Transactions</button>
+              </div>
+            </div>
+            <!-- /TRANSACTION LIST -->
+
+          </section>
+          <!-- /RIGHT COLUMN -->
+
+        </div>
+        <!-- /MAIN TWO-COLUMN LAYOUT -->
+
+        <!-- ===== STATISTICS SECTION ===== -->
+        <section class="stats-section" aria-labelledby="stats-heading">
+          <div class="card-header section-heading-row">
+            <h2 id="stats-heading" class="section-title section-title--large">
+              <span aria-hidden="true">📊</span> Spending Insights
+            </h2>
+          </div>
+
+          <div class="stats-grid">
+
+            <!-- Top Categories Card -->
+            <div class="card stats-card" aria-labelledby="top-categories-heading">
+              <h3 id="top-categories-heading" class="stats-card-title">
+                <span aria-hidden="true">🏷️</span> Top Expense Categories
+              </h3>
+              <ul id="top-categories-list" class="top-categories-list" aria-label="Top spending categories">
+                <!-- JS will render category bars here -->
+                <li class="top-category-item placeholder-item" aria-hidden="true">
+                  <span class="tc-label">No data yet</span>
+                  <div class="tc-bar-wrap"><div class="tc-bar" style="width: 0%"></div></div>
+                  <span class="tc-amount">—</span>
+                </li>
+              </ul>
+            </div>
+
+            <!-- Monthly Breakdown Card -->
+            <div class="card stats-card" aria-labelledby="monthly-breakdown-heading">
+              <h3 id="monthly-breakdown-heading" class="stats-card-title">
+                <span aria-hidden="true">📅</span> Monthly Breakdown
+              </h3>
+              <div id="monthly-chart" class="monthly-chart" aria-label="Monthly income vs expense comparison">
+                <!-- JS will render monthly bars here -->
+                <div class="monthly-chart-empty" aria-hidden="true">
+                  <span>Add transactions to see your monthly breakdown</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Financial Health Card -->
+            <div class="card stats-card" aria-labelledby="financial-health-heading">
+              <h3 id="financial-health-heading" class="stats-card-title">
+                <span aria-hidden="true">💡</span> Financial Health
+              </h3>
+              <div id="health-score-wrap" class="health-score-wrap">
+                <div class="health-circle" id="health-circle" aria-label="Financial health score">
+                  <span id="health-score-text" class="health-score-text">—</span>
+                  <span class="health-score-label">Score</span>
+                </div>
+                <ul class="health-tips" id="health-tips">
+                  <li class="health-tip">💡 Start tracking to get personalized tips.</li>
+                </ul>
+              </div>
+            </div>
+
+          </div>
+        </section>
+        <!-- /STATISTICS SECTION -->
+
+      </div>
+    </main>
+    <!-- /MAIN CONTENT -->
+
+    <!-- ===== FOOTER ===== -->
+    <footer class="footer" role="contentinfo">
+      <div class="container footer-inner">
+        <div class="footer-brand">
+          <span class="footer-logo" aria-hidden="true">💰</span>
+          <span class="footer-name">Personal Finance Tracker</span>
+        </div>
+        <p class="footer-desc">
+          A BCA college project built with ❤️ using HTML5, CSS3 &amp; Vanilla JavaScript.
+        </p>
+        <div class="footer-links" role="list">
+          <span role="listitem"><a href="README.md" class="footer-link" target="_blank" rel="noopener">📄 README</a></span>
+          <span role="listitem"><a href="#" class="footer-link">🐙 GitHub</a></span>
+          <span role="listitem"><a href="#" class="footer-link">📧 Contact</a></span>
+        </div>
+        <p class="footer-copy">&copy; <span id="footer-year"></span> Personal Finance Tracker. All rights reserved.</p>
+      </div>
+    </footer>
+    <!-- /FOOTER -->
+
+  </div>
+  <!-- /APP WRAPPER -->
+
+  <!-- Scripts (Phase 2+ will populate these) -->
+  <script src="storage.js" defer></script>
+  <script src="script.js" defer></script>
+
+</body>
+</html>
