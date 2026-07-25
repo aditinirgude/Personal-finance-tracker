@@ -2279,3 +2279,291 @@ h6 {
     font-size: 12pt;
   }
 }
+
+/* ─── 34. TOAST NOTIFICATIONS ────────────────────────────────────────────── */
+
+.toast-container {
+  position: fixed;
+  bottom: 1.5rem;
+  right: 1.5rem;
+  z-index: var(--z-toast);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  pointer-events: none;
+  max-width: min(380px, calc(100vw - 3rem));
+}
+
+.toast {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.75rem 1rem;
+  border-radius: var(--border-radius);
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-lg);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-med);
+  color: var(--text-primary);
+  pointer-events: auto;
+  opacity: 0;
+  transform: translateX(110%);
+  will-change: transform, opacity;
+}
+
+.toast--visible {
+  animation: toastSlideIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.toast--hiding {
+  animation: toastSlideOut 0.28s ease-in forwards;
+}
+
+/* Accent left-border per type */
+.toast--success { border-left: 4px solid var(--color-income);   }
+.toast--error   { border-left: 4px solid var(--color-expense);  }
+.toast--warning { border-left: 4px solid var(--color-savings);  }
+.toast--info    { border-left: 4px solid var(--brand-primary);  }
+
+.toast-icon {
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+
+.toast-message {
+  flex: 1;
+  line-height: 1.45;
+}
+
+.toast-close {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  line-height: 1;
+  padding: 0.2rem 0.3rem;
+  border-radius: 4px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: color var(--transition-fast), background var(--transition-fast);
+}
+
+.toast-close:hover {
+  color: var(--text-primary);
+  background: var(--bg-hover);
+}
+
+.toast-close:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 2px;
+}
+
+@keyframes toastSlideIn {
+  from { opacity: 0; transform: translateX(110%); }
+  to   { opacity: 1; transform: translateX(0);    }
+}
+
+@keyframes toastSlideOut {
+  from { opacity: 1; transform: translateX(0);    }
+  to   { opacity: 0; transform: translateX(110%); }
+}
+
+/* ─── 35. CONFIRM MODAL ──────────────────────────────────────────────────── */
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  animation: modalFadeIn 0.2s ease forwards;
+}
+
+/* When hidden attr is present, override display */
+.modal-overlay[hidden] {
+  display: none !important;
+}
+
+.modal-box {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-xl);
+  box-shadow: var(--shadow-lg);
+  padding: 2rem;
+  max-width: 420px;
+  width: 100%;
+  text-align: center;
+  animation: modalScaleIn 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: transform, opacity;
+}
+
+.modal-icon {
+  font-size: 2.5rem;
+  margin-bottom: 1rem;
+  display: block;
+  line-height: 1;
+}
+
+.modal-title {
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--text-primary);
+  margin-bottom: 0.5rem;
+}
+
+.modal-message {
+  font-size: var(--font-size-base);
+  color: var(--text-secondary);
+  margin-bottom: 1.75rem;
+  line-height: 1.6;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.modal-actions .btn {
+  min-width: 120px;
+}
+
+@keyframes modalFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes modalScaleIn {
+  from { opacity: 0; transform: scale(0.88) translateY(16px); }
+  to   { opacity: 1; transform: scale(1)    translateY(0);    }
+}
+
+/* ─── 36. TRANSACTION ROW ENTRANCE ANIMATION (Phase 4) ───────────────────── */
+
+@keyframes fadeSlideUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0);   }
+}
+
+.txn-row {
+  animation: fadeSlideUp 0.22s ease both;
+}
+
+/* Stagger the first 10 rows */
+.txn-row:nth-child(1)  { animation-delay: 0.02s; }
+.txn-row:nth-child(2)  { animation-delay: 0.04s; }
+.txn-row:nth-child(3)  { animation-delay: 0.06s; }
+.txn-row:nth-child(4)  { animation-delay: 0.08s; }
+.txn-row:nth-child(5)  { animation-delay: 0.10s; }
+.txn-row:nth-child(6)  { animation-delay: 0.12s; }
+.txn-row:nth-child(7)  { animation-delay: 0.14s; }
+.txn-row:nth-child(8)  { animation-delay: 0.16s; }
+.txn-row:nth-child(9)  { animation-delay: 0.18s; }
+.txn-row:nth-child(10) { animation-delay: 0.20s; }
+
+/* ─── 37. SAVINGS BAR SMOOTH FILL (Phase 4) ──────────────────────────────── */
+
+.savings-bar-fill {
+  transition: width 0.9s cubic-bezier(0.25, 1, 0.5, 1) !important;
+}
+
+/* ─── 38. DASHBOARD CARD ENTRANCE (Phase 4) ──────────────────────────────── */
+
+@keyframes cardRiseIn {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0);    }
+}
+
+.dashboard-card {
+  animation: cardRiseIn 0.35s ease both;
+}
+
+.dashboard-card:nth-child(1) { animation-delay: 0.05s; }
+.dashboard-card:nth-child(2) { animation-delay: 0.10s; }
+.dashboard-card:nth-child(3) { animation-delay: 0.15s; }
+.dashboard-card:nth-child(4) { animation-delay: 0.20s; }
+
+/* ─── 39. FOCUS-VISIBLE GLOBAL RING (Phase 4 a11y) ──────────────────────── */
+
+/* Ensure all interactive elements have a visible focus ring */
+:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+/* Remove default outline only when focus-visible is fully supported */
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* ─── 40. REDUCED MOTION (Phase 4 a11y) ──────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration:       0.01ms !important;
+    animation-iteration-count: 1     !important;
+    transition-duration:      0.01ms !important;
+    scroll-behavior:          auto   !important;
+  }
+}
+
+/* ─── 41. CUSTOM SCROLLBAR (Phase 4 cross-browser) ───────────────────────── */
+
+/* WebKit (Chrome, Safari, Edge) */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-color) transparent;
+}
+
+/* ─── 42. SKIP LINK (Phase 4 a11y) ───────────────────────────────────────── */
+
+.skip-link {
+  position: absolute;
+  top: -100%;
+  left: 1rem;
+  z-index: 9999;
+  background: var(--brand-primary);
+  color: #ffffff;
+  padding: 0.5rem 1.25rem;
+  border-radius: 0 0 var(--border-radius) var(--border-radius);
+  font-weight: var(--font-weight-semi);
+  font-size: var(--font-size-sm);
+  text-decoration: none;
+  transition: top var(--transition-fast);
+  white-space: nowrap;
+  box-shadow: var(--shadow);
+}
+
+.skip-link:focus {
+  top: 0;
+  outline: none;
+}

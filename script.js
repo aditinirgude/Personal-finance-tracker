@@ -8,7 +8,8 @@
  *   – Spending insights (top categories, monthly chart, health score)
  *   – Pagination (Load More)
  *   – Currency selector
- * Phase 3 will connect localStorage and toast notifications.
+ * Phase 3: localStorage persistence, real toast notifications, theme/settings persistence
+ * Phase 4: Accessibility (focus trap, ARIA focus mgmt), reduced-motion, cross-browser polish
  */
 
 'use strict';
@@ -93,15 +94,51 @@ function todayISO() {
 }
 
 /**
- * Show a toast notification.
- * In Phase 2, this logs to the console.
- * Phase 3 will replace this with a real toast UI.
+ * Show a toast notification with auto-dismiss.
+ * Injects a .toast element into #toast-container and animates it in/out.
  * @param {string} message
- * @param {'success'|'error'|'warning'} type
+ * @param {'success'|'error'|'warning'|'info'} [type='success']
+ * @param {number} [duration=3500]  ms before auto-dismiss
  */
-function showToast(message, type = 'success') {
-  // Phase 3 will implement the visual toast. Stub for now.
-  console.log(`[Toast:${type}] ${message}`);
+function showToast(message, type = 'success', duration = 3500) {
+  const container = document.getElementById('toast-container');
+  if (!container) return;
+
+  const icons = { success: '✅', error: '❌', warning: '⚠️', info: 'ℹ️' };
+
+  const toast = document.createElement('div');
+  toast.className = `toast toast--${type}`;
+  toast.setAttribute('role', 'status');
+  toast.innerHTML = `
+    <span class="toast-icon" aria-hidden="true">${icons[type] || icons.info}</span>
+    <span class="toast-message">${_escapeHtml(String(message))}</span>
+    <button class="toast-close" type="button" aria-label="Dismiss notification">✕</button>
+  `;
+
+  toast.querySelector('.toast-close').addEventListener('click', () => _dismissToast(toast));
+  container.appendChild(toast);
+
+  // Force reflow then trigger CSS enter animation
+  void toast.offsetWidth;
+  toast.classList.add('toast--visible');
+
+  // Auto-dismiss after duration
+  toast._dismissTimer = setTimeout(() => _dismissToast(toast), duration);
+}
+
+/**
+ * Animate a toast out and remove it from the DOM.
+ * @param {HTMLElement} toast
+ */
+function _dismissToast(toast) {
+  if (!toast || toast._dismissed) return;
+  toast._dismissed = true;
+  clearTimeout(toast._dismissTimer);
+  toast.classList.remove('toast--visible');
+  toast.classList.add('toast--hiding');
+  // Remove after animation; fallback timeout guards against missing animationend
+  toast.addEventListener('animationend', () => toast.remove(), { once: true });
+  setTimeout(() => toast.isConnected && toast.remove(), 600);
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -646,6 +683,7 @@ function handleFormSubmit(e) {
     if (idx !== -1) {
       transactions[idx] = { ...transactions[idx], title, amount, type, category, date, notes };
     }
+    saveTransactions(transactions); // Phase 3: persist update
     showToast('Transaction updated successfully! ✏️', 'success');
   } else {
     // CREATE new transaction
@@ -660,6 +698,7 @@ function handleFormSubmit(e) {
       createdAt: Date.now(),
     };
     transactions.push(newTxn);
+    saveTransactions(transactions); // Phase 3: persist new entry
     showToast('Transaction added successfully! ➕', 'success');
   }
 
@@ -777,7 +816,12 @@ function startEdit(id) {
 function requestDelete(id) {
   pendingDeleteId = id;
   const modal = document.getElementById('confirm-modal');
-  if (modal) modal.hidden = false;
+  if (modal) {
+    modal.hidden = false;
+    // Phase 4: Focus the safe/cancel button by default for keyboard users
+    const cancelBtn = document.getElementById('confirm-cancel-btn');
+    if (cancelBtn) setTimeout(() => cancelBtn.focus(), 60);
+  }
 }
 
 /**
@@ -790,6 +834,7 @@ function confirmDelete() {
   if (editingId === pendingDeleteId) clearForm();
 
   transactions = transactions.filter(t => t.id !== pendingDeleteId);
+  saveTransactions(transactions); // Phase 3: persist deletion
   pendingDeleteId = null;
 
   const modal = document.getElementById('confirm-modal');
@@ -830,6 +875,21 @@ function updateClock() {
  * Called once on DOMContentLoaded.
  */
 function init() {
+
+  /* ── Phase 3: Restore persisted state before first render ──────────────── */
+
+  // 1. Theme — apply before any paint to avoid flash of wrong theme
+  const _savedTheme = getStoredTheme();
+  if (_savedTheme) document.documentElement.setAttribute('data-theme', _savedTheme);
+
+  // 2. Settings (currency symbol)
+  const _settings = loadSettings();
+  currencySymbol = _settings.currency || '₹';
+  const _currencySelectEl = document.getElementById('currency-select');
+  if (_currencySelectEl) _currencySelectEl.value = currencySymbol;
+
+  // 3. Transactions from localStorage
+  transactions = loadTransactions();
 
   /* ── Live clock ── */
   updateClock();
@@ -992,8 +1052,24 @@ function init() {
     confirmDeleteBtn.addEventListener('click', confirmDelete);
   }
   if (confirmModal) {
+    // Close on backdrop click
     confirmModal.addEventListener('click', function (e) {
       if (e.target === this) { this.hidden = true; pendingDeleteId = null; }
+    });
+    // Phase 4: Focus trap — keep Tab / Shift+Tab cycling inside the modal
+    confirmModal.addEventListener('keydown', function (e) {
+      if (e.key !== 'Tab') return;
+      const focusable = [...this.querySelectorAll(
+        'button:not([disabled]), [href], input:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      )];
+      if (!focusable.length) return;
+      const first = focusable[0];
+      const last  = focusable[focusable.length - 1];
+      if (e.shiftKey) {
+        if (document.activeElement === first) { e.preventDefault(); last.focus(); }
+      } else {
+        if (document.activeElement === last)  { e.preventDefault(); first.focus(); }
+      }
     });
   }
   document.addEventListener('keydown', function (e) {
@@ -1009,8 +1085,9 @@ function init() {
     themeToggleBtn.addEventListener('click', function () {
       const html   = document.documentElement;
       const isDark = html.getAttribute('data-theme') === 'dark';
-      html.setAttribute('data-theme', isDark ? 'light' : 'dark');
-      // Phase 3 will persist this to localStorage.
+      const next   = isDark ? 'light' : 'dark';
+      html.setAttribute('data-theme', next);
+      setStoredTheme(next); // Phase 3: persist theme preference
     });
   }
 
@@ -1019,6 +1096,7 @@ function init() {
   if (currencySelect) {
     currencySelect.addEventListener('change', function () {
       currencySymbol = this.value;
+      updateSetting('currency', currencySymbol); // Phase 3: persist currency preference
       // Update the form prefix
       const prefix = document.getElementById('currency-prefix');
       if (prefix) prefix.textContent = currencySymbol;
