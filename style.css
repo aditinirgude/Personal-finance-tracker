@@ -1933,7 +1933,331 @@ h6 {
   }
 }
 
-/* ─── 32. PRINT STYLES ────────────────────────────────────────────────────── */
+/* ─── 32. PHASE 2 – DYNAMIC ELEMENT STYLES ───────────────────────────────── */
+
+/* ── Transaction Table Rows ── */
+.transactions-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-size-sm);
+}
+
+.transactions-table thead th {
+  padding: var(--space-3) var(--space-4);
+  text-align: left;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semi);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  border-bottom: 2px solid var(--border-color);
+  background: var(--bg-card-alt);
+  white-space: nowrap;
+}
+
+.txn-row {
+  border-bottom: 1px solid var(--border-color);
+  transition: background var(--transition-fast);
+}
+
+.txn-row:last-child { border-bottom: none; }
+
+.txn-row:hover {
+  background: var(--bg-hover);
+}
+
+.txn-row td {
+  padding: var(--space-3) var(--space-4);
+  vertical-align: middle;
+}
+
+.td-title {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.txn-title {
+  font-weight: var(--font-weight-semi);
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 200px;
+}
+
+.txn-category {
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+}
+
+.txn-notes-indicator {
+  font-size: var(--font-size-xs);
+  cursor: help;
+  opacity: 0.7;
+}
+
+.td-date {
+  white-space: nowrap;
+  color: var(--text-secondary);
+}
+
+/* Type & Amount badges */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--border-radius-pill);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semi);
+  white-space: nowrap;
+}
+
+.badge--income {
+  background: var(--color-income-bg);
+  color: var(--color-income-h);
+}
+
+.badge--expense {
+  background: var(--color-expense-bg);
+  color: var(--color-expense-h);
+}
+
+[data-theme="dark"] .badge--income {
+  background: rgba(52, 211, 153, .15);
+  color: #34D399;
+}
+
+[data-theme="dark"] .badge--expense {
+  background: rgba(248, 113, 113, .15);
+  color: #F87171;
+}
+
+.td-amount {
+  font-weight: var(--font-weight-bold);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  text-align: right;
+}
+
+.amount--income  { color: var(--color-income);  }
+.amount--expense { color: var(--color-expense); }
+
+/* ── Icon Buttons (Edit / Delete) ── */
+.td-actions {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.btn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--border-radius-sm);
+  border: 1px solid var(--border-color);
+  background: var(--bg-card);
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: all var(--transition-fast);
+  flex-shrink: 0;
+}
+
+.btn-edit:hover {
+  background: var(--brand-primary-l);
+  border-color: var(--brand-primary);
+  transform: scale(1.08);
+}
+
+.btn-delete:hover {
+  background: var(--color-expense-bg);
+  border-color: var(--color-expense);
+  transform: scale(1.08);
+}
+
+[data-theme="dark"] .btn-icon {
+  background: var(--bg-card-alt);
+}
+
+/* ── Negative balance card variant ── */
+.card--balance-negative .card-amount--balance {
+  color: var(--color-expense);
+}
+
+/* ── Top Expense Categories (Phase 2 renders) ── */
+.top-categories-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-6);
+}
+
+.top-category-item {
+  display: grid;
+  grid-template-columns: 110px 1fr 80px;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.tc-label {
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+  font-weight: var(--font-weight-med);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tc-bar-wrap {
+  height: 8px;
+  background: var(--bg-card-alt);
+  border-radius: var(--border-radius-pill);
+  border: 1px solid var(--border-color);
+  overflow: hidden;
+}
+
+.tc-bar {
+  height: 100%;
+  background: linear-gradient(90deg, var(--color-expense), var(--color-expense-h));
+  border-radius: var(--border-radius-pill);
+  transition: width 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.tc-amount {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-expense);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Monthly Chart (Phase 2 renders) ── */
+.monthly-chart-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-3);
+  height: 120px;
+  padding: var(--space-3) var(--space-4) 0;
+  border-bottom: 2px solid var(--border-color);
+}
+
+.mc-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+  gap: var(--space-2);
+}
+
+.mc-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  width: 100%;
+  height: 100px;
+}
+
+.mc-bar {
+  flex: 1;
+  border-radius: 4px 4px 0 0;
+  transition: height 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+  min-height: 2px;
+}
+
+.mc-bar--income  {
+  background: linear-gradient(180deg, var(--color-income), var(--color-income-h));
+}
+
+.mc-bar--expense {
+  background: linear-gradient(180deg, var(--color-expense), var(--color-expense-h));
+}
+
+.mc-label {
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+  font-weight: var(--font-weight-med);
+  margin-top: var(--space-1);
+}
+
+.mc-legend {
+  display: flex;
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  font-size: var(--font-size-xs);
+}
+
+.mc-legend-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-weight: var(--font-weight-med);
+  color: var(--text-secondary);
+}
+
+.mc-legend--income  { color: var(--color-income); }
+.mc-legend--expense { color: var(--color-expense); }
+
+/* ── Financial Health Score (Phase 2 renders states) ── */
+.health-circle {
+  width: 90px;
+  height: 90px;
+  border-radius: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border: 3px solid var(--border-color);
+  background: var(--bg-card-alt);
+  flex-shrink: 0;
+  transition: border-color var(--transition), background var(--transition);
+}
+
+.health-circle--excellent {
+  border-color: var(--color-income);
+  background: var(--color-income-bg);
+}
+
+.health-circle--good {
+  border-color: var(--brand-primary);
+  background: var(--brand-primary-l);
+}
+
+.health-circle--fair {
+  border-color: var(--color-savings);
+  background: var(--color-savings-bg);
+}
+
+.health-circle--critical {
+  border-color: var(--color-expense);
+  background: var(--color-expense-bg);
+}
+
+[data-theme="dark"] .health-circle--excellent { background: rgba(16,185,129,.15); }
+[data-theme="dark"] .health-circle--good      { background: rgba(99,102,241,.15); }
+[data-theme="dark"] .health-circle--fair      { background: rgba(245,158,11,.15); }
+[data-theme="dark"] .health-circle--critical  { background: rgba(239,68,68,.15);  }
+
+.health-score-text {
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-xbold);
+  color: var(--text-primary);
+  line-height: 1;
+}
+
+.health-grade-label {
+  font-size: 0.6rem;
+  font-weight: var(--font-weight-semi);
+  color: var(--text-secondary);
+  text-align: center;
+  margin-top: 2px;
+}
+
+/* ─── 33. PRINT STYLES ────────────────────────────────────────────────────── */
 @media print {
 
   .header-actions,
