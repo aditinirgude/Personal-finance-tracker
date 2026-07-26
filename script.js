@@ -46,8 +46,124 @@ const activeFilters = {
 };
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   2. UTILITY HELPERS
+   2. UTILITY & CURRENCY HELPERS
    ═══════════════════════════════════════════════════════════════════════════ */
+
+/** 12 hours cache expiration duration (in ms) */
+const CACHE_DURATION_MS = 12 * 60 * 60 * 1000;
+
+/** Supported currencies metadata: Symbol to ISO code & locale mapping */
+const CURRENCY_MAP = {
+  '₹':    { code: 'INR', locale: 'en-IN' },
+  '$':    { code: 'USD', locale: 'en-US' },
+  '€':    { code: 'EUR', locale: 'de-DE' },
+  '£':    { code: 'GBP', locale: 'en-GB' },
+  '¥':    { code: 'JPY', locale: 'ja-JP' },
+  'د.إ':  { code: 'AED', locale: 'ar-AE' },
+};
+
+/** Safety fallback rates if network API is un-reachable and no cache exists */
+const DEFAULT_RATES = {
+  INR: 1,
+  USD: 0.0115,
+  EUR: 0.0098,
+  GBP: 0.0084,
+  JPY: 1.78,
+  AED: 0.0422,
+};
+
+/** In-memory active live exchange rates map (base currency: INR) */
+let liveRates = { ...DEFAULT_RATES };
+
+/**
+ * Initialize exchange rates: reads from 12h LocalStorage cache or fetches from free API.
+ */
+async function initExchangeRates() {
+  const cachedRates = getCachedExchangeRates();
+  const timestamp = getRatesTimestamp();
+  const now = Date.now();
+
+  if (cachedRates && timestamp && (now - timestamp < CACHE_DURATION_MS)) {
+    liveRates = { ...DEFAULT_RATES, ...cachedRates };
+    return;
+  }
+
+  // Fetch fresh rates from free Open Exchange Rates API
+  await fetchLiveExchangeRates();
+}
+
+/**
+ * Fetch latest live exchange rates from public CORS-enabled API with timeout & fallback handling.
+ */
+async function fetchLiveExchangeRates() {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout
+
+  try {
+    const res = await fetch('https://open.er-api.com/v6/latest/INR', {
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+
+    if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+
+    const data = await res.json();
+    if (data && data.result === 'success' && data.rates) {
+      liveRates = {
+        INR: 1,
+        USD: data.rates.USD || DEFAULT_RATES.USD,
+        EUR: data.rates.EUR || DEFAULT_RATES.EUR,
+        GBP: data.rates.GBP || DEFAULT_RATES.GBP,
+        JPY: data.rates.JPY || DEFAULT_RATES.JPY,
+        AED: data.rates.AED || DEFAULT_RATES.AED,
+      };
+
+      // Persist to LocalStorage cache with timestamp
+      saveCachedExchangeRates(liveRates);
+      saveRatesTimestamp(Date.now());
+    }
+  } catch (err) {
+    clearTimeout(timeoutId);
+    console.warn('[rates] Network/API error fetching live rates:', err);
+
+    // Fallback strategy: check if any prior cache exists
+    const cachedRates = getCachedExchangeRates();
+    if (cachedRates) {
+      liveRates = { ...DEFAULT_RATES, ...cachedRates };
+    } else {
+      liveRates = { ...DEFAULT_RATES };
+      showToast('Live exchange rates offline. Using default currency rates.', 'info');
+    }
+  }
+}
+
+/**
+ * Get current exchange rate for active currency symbol.
+ * @returns {number}
+ */
+function getExchangeRate() {
+  const info = CURRENCY_MAP[currencySymbol] || CURRENCY_MAP['₹'];
+  return liveRates[info.code] || DEFAULT_RATES[info.code] || 1;
+}
+
+/**
+ * Convert an amount from base currency (INR) to currently selected display currency.
+ * @param {number} inrAmount
+ * @returns {number}
+ */
+function convertAmount(inrAmount) {
+  return inrAmount * getExchangeRate();
+}
+
+/**
+ * Convert an amount entered in active display currency back to base currency (INR).
+ * @param {number} inputAmount
+ * @returns {number}
+ */
+function toBaseINR(inputAmount) {
+  const rate = getExchangeRate();
+  return rate > 0 ? inputAmount / rate : inputAmount;
+}
 
 /**
  * Generate a unique ID for each transaction.
@@ -61,15 +177,38 @@ function generateId() {
 }
 
 /**
- * Format a number as a currency string.
- * @param {number} amount
- * @returns {string}  e.g. "₹1,234.56"
+ * Format an internal INR base number as a converted currency string.
+ * Always uses dot (.) as the decimal separator and comma (,) as the thousands separator,
+ * regardless of browser or OS locale settings.
+ * @param {number} inrAmount - Amount in base currency (INR)
+ * @returns {string} e.g. "€216.65", "$11.50", "¥1,500", "₹1,23,456.78", "د.إ42.20"
  */
-function formatCurrency(amount) {
-  return `${currencySymbol}${Math.abs(amount).toLocaleString('en-IN', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`;
+function formatCurrency(inrAmount) {
+  const converted = Math.abs(convertAmount(inrAmount));
+  const info = CURRENCY_MAP[currencySymbol] || CURRENCY_MAP['₹'];
+  const decimals = info.code === 'JPY' ? 0 : 2;
+
+  // Build fixed-decimal string (always uses dot)
+  const fixed = converted.toFixed(decimals);
+
+  // Split into integer and decimal parts
+  const [intPart, decPart] = fixed.split('.');
+
+  // Add thousands separators (INR style: 2,2,2 grouping for lakh/crore; others: standard 3)
+  let formattedInt;
+  if (info.code === 'INR') {
+    // Indian numbering: last 3 digits, then groups of 2
+    const lastThree = intPart.slice(-3);
+    const rest = intPart.slice(0, intPart.length - 3);
+    formattedInt = rest
+      ? rest.replace(/\B(?=(\d{2})+(?!\d))/g, ',') + ',' + lastThree
+      : lastThree;
+  } else {
+    formattedInt = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  }
+
+  const result = decPart !== undefined ? `${formattedInt}.${decPart}` : formattedInt;
+  return `${currencySymbol}${result}`;
 }
 
 /**
@@ -146,7 +285,7 @@ function _dismissToast(toast) {
    ═══════════════════════════════════════════════════════════════════════════ */
 
 /**
- * Recalculate and re-render all four dashboard summary cards.
+ * Recalculate and re-render all dashboard summary cards.
  */
 function updateDashboard() {
   const totalIncome = transactions
@@ -157,18 +296,35 @@ function updateDashboard() {
     .filter(t => t.type === 'expense')
     .reduce((sum, t) => sum + t.amount, 0);
 
-  const balance = totalIncome - totalExpense;
+  const totalInvestment = transactions
+    .filter(t => t.type === 'investment')
+    .reduce((sum, t) => sum + t.amount, 0);
+
+  // Available Cash Balance = Income - Expense - Investment
+  const balance = totalIncome - totalExpense - totalInvestment;
+
+  // Total Saved = Income - Expense (Investment is saved money, not an expense)
+  const totalSaved = Math.max(0, totalIncome - totalExpense);
+
+  // Savings Rate = Total Saved / Income
   const savingsRate = totalIncome > 0
-    ? Math.min(100, Math.max(0, (balance / totalIncome) * 100))
+    ? Math.min(100, Math.max(0, (totalSaved / totalIncome) * 100))
+    : 0;
+
+  // Investment Percentage = Total Investment / Income
+  const investmentPct = totalIncome > 0
+    ? Math.min(100, Math.max(0, (totalInvestment / totalIncome) * 100))
     : 0;
 
   // Inject values into DOM
   const el = id => document.getElementById(id);
 
-  el('total-balance').textContent = (balance < 0 ? '−' : '') + formatCurrency(balance);
-  el('total-income').textContent = formatCurrency(totalIncome);
-  el('total-expense').textContent = formatCurrency(totalExpense);
-  el('total-savings').textContent = `${savingsRate.toFixed(1)}%`;
+  if (el('total-balance')) el('total-balance').textContent = (balance < 0 ? '−' : '') + formatCurrency(balance);
+  if (el('total-income')) el('total-income').textContent = formatCurrency(totalIncome);
+  if (el('total-expense')) el('total-expense').textContent = formatCurrency(totalExpense);
+  if (el('total-investment')) el('total-investment').textContent = formatCurrency(totalInvestment);
+  if (el('total-savings')) el('total-savings').textContent = `${savingsRate.toFixed(1)}%`;
+  if (el('investment-pct')) el('investment-pct').textContent = `${investmentPct.toFixed(1)}% of Income`;
 
   // Savings bar fill
   const barFill = el('savings-bar-fill');
@@ -184,6 +340,7 @@ function updateDashboard() {
   _setTrend('balance-trend', balance, '+0%');
   _setTrend('income-trend', totalIncome, `+${savingsRate.toFixed(0)}%`);
   _setTrend('expense-trend', -totalExpense, '');
+  _setTrend('investment-trend', totalInvestment, `${investmentPct.toFixed(0)}%`);
 }
 
 /**
@@ -223,7 +380,8 @@ function updateQuickStats() {
 
   const mIncome = thisMonth.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
   const mExpense = thisMonth.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
-  const mNet = mIncome - mExpense;
+  const mInvestment = thisMonth.filter(t => t.type === 'investment').reduce((s, t) => s + t.amount, 0);
+  const mNet = mIncome - mExpense - mInvestment;
 
   const el = id => document.getElementById(id);
 
@@ -231,6 +389,7 @@ function updateQuickStats() {
   if (el('qs-month')) el('qs-month').textContent = monthLabel;
   if (el('qs-month-income')) el('qs-month-income').textContent = formatCurrency(mIncome);
   if (el('qs-month-expense')) el('qs-month-expense').textContent = formatCurrency(mExpense);
+  if (el('qs-month-investment')) el('qs-month-investment').textContent = formatCurrency(mInvestment);
   if (el('qs-count')) el('qs-count').textContent = thisMonth.length;
 
   const netEl = el('qs-month-net');
@@ -258,10 +417,10 @@ function _renderTopCategories() {
   const listEl = document.getElementById('top-categories-list');
   if (!listEl) return;
 
-  // Group expenses by category
+  // Group expenses & investments by category
   const categoryTotals = {};
   transactions
-    .filter(t => t.type === 'expense')
+    .filter(t => t.type === 'expense' || t.type === 'investment')
     .forEach(t => {
       categoryTotals[t.category] = (categoryTotals[t.category] || 0) + t.amount;
     });
@@ -273,7 +432,7 @@ function _renderTopCategories() {
   if (sorted.length === 0) {
     listEl.innerHTML = `
       <li class="top-category-item placeholder-item" aria-hidden="true">
-        <span class="tc-label">No expense data yet</span>
+        <span class="tc-label">No expense or investment data yet</span>
         <div class="tc-bar-wrap"><div class="tc-bar" style="width:0%"></div></div>
         <span class="tc-amount">—</span>
       </li>`;
@@ -294,7 +453,7 @@ function _renderTopCategories() {
   }).join('');
 }
 
-/** Render the last-6-months income vs expense bar chart */
+/** Render the last-6-months income vs expense vs investment bar chart */
 function _renderMonthlyChart() {
   const chartEl = document.getElementById('monthly-chart');
   if (!chartEl) return;
@@ -310,6 +469,7 @@ function _renderMonthlyChart() {
       label: d.toLocaleDateString('en-IN', { month: 'short' }),
       income: 0,
       expense: 0,
+      investment: 0,
     });
   }
 
@@ -319,9 +479,10 @@ function _renderMonthlyChart() {
     if (!m) return;
     if (t.type === 'income') m.income += t.amount;
     if (t.type === 'expense') m.expense += t.amount;
+    if (t.type === 'investment') m.investment += t.amount;
   });
 
-  const hasData = months.some(m => m.income > 0 || m.expense > 0);
+  const hasData = months.some(m => m.income > 0 || m.expense > 0 || m.investment > 0);
   if (!hasData) {
     chartEl.innerHTML = `
       <div class="monthly-chart-empty" aria-hidden="true">
@@ -330,18 +491,20 @@ function _renderMonthlyChart() {
     return;
   }
 
-  const maxVal = Math.max(...months.map(m => Math.max(m.income, m.expense)), 1);
+  const maxVal = Math.max(...months.map(m => Math.max(m.income, m.expense, m.investment)), 1);
 
   chartEl.innerHTML = `
     <div class="monthly-chart-bars">
       ${months.map(m => {
     const inPct = ((m.income / maxVal) * 100).toFixed(1);
     const exPct = ((m.expense / maxVal) * 100).toFixed(1);
+    const invPct = ((m.investment / maxVal) * 100).toFixed(1);
     return `
           <div class="mc-group">
             <div class="mc-bars">
               <div class="mc-bar mc-bar--income"  style="height:${inPct}%" title="Income: ${formatCurrency(m.income)}"></div>
               <div class="mc-bar mc-bar--expense" style="height:${exPct}%" title="Expense: ${formatCurrency(m.expense)}"></div>
+              <div class="mc-bar mc-bar--investment" style="height:${invPct}%" title="Investment: ${formatCurrency(m.investment)}"></div>
             </div>
             <span class="mc-label">${m.label}</span>
           </div>`;
@@ -350,6 +513,7 @@ function _renderMonthlyChart() {
     <div class="mc-legend">
       <span class="mc-legend-item mc-legend--income">● Income</span>
       <span class="mc-legend-item mc-legend--expense">● Expense</span>
+      <span class="mc-legend-item mc-legend--investment">● Investment</span>
     </div>`;
 }
 
@@ -369,31 +533,34 @@ function _renderHealthScore() {
 
   const totalIncome = transactions.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
   const totalExpense = transactions.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
-  const balance = totalIncome - totalExpense;
-  const savingsRate = totalIncome > 0 ? (balance / totalIncome) * 100 : 0;
+  const totalInvestment = transactions.filter(t => t.type === 'investment').reduce((s, t) => s + t.amount, 0);
+
+  const totalSaved = totalIncome - totalExpense;
+  const savingsRate = totalIncome > 0 ? (totalSaved / totalIncome) * 100 : 0;
   const expenseRatio = totalIncome > 0 ? (totalExpense / totalIncome) * 100 : 100;
 
   // Score: 0–100
   let score = 50;
-  if (savingsRate >= 20) score += 30;
-  else if (savingsRate >= 10) score += 15;
-  else if (savingsRate > 0) score += 5;
+  if (savingsRate >= 30) score += 30;
+  else if (savingsRate >= 20) score += 20;
+  else if (savingsRate >= 10) score += 10;
   else if (savingsRate < 0) score -= 20;
 
-  if (expenseRatio <= 50) score += 20;
-  else if (expenseRatio <= 70) score += 10;
-  else if (expenseRatio <= 90) score += 0;
-  else score -= 10;
+  if (totalInvestment > 0) score += 10;
+
+  if (expenseRatio <= 50) score += 10;
+  else if (expenseRatio <= 70) score += 5;
+  else if (expenseRatio > 90) score -= 10;
 
   score = Math.min(100, Math.max(0, score));
 
   let grade, gradeClass, tips;
   if (score >= 80) {
     grade = '🌟 Excellent'; gradeClass = 'health-circle--excellent';
-    tips = ['✅ Great savings habit! Keep it up.', '📈 Consider investing your surplus.'];
+    tips = ['✅ Great savings habit! Keep it up.', '💹 Investments add value to your future wealth.'];
   } else if (score >= 60) {
     grade = '👍 Good'; gradeClass = 'health-circle--good';
-    tips = ['💡 Try to save at least 20% of your income.', '🎯 Set a monthly budget for discretionary spending.'];
+    tips = ['💡 Try to save/invest at least 20% of your income.', '🎯 Set a monthly budget for discretionary spending.'];
   } else if (score >= 40) {
     grade = '⚠️ Fair'; gradeClass = 'health-circle--fair';
     tips = ['⚠️ Expenses are high relative to income.', '✂️ Review your top spending categories.'];
@@ -422,6 +589,9 @@ function _categoryEmoji(cat) {
     Salary: '💼', Freelance: '🖥️', Investments: '📊', Gifts: '🎁', 'Other Income': '💡',
     Food: '🍔', Rent: '🏠', Transport: '🚗', Shopping: '🛍️', Bills: '💡',
     Healthcare: '🏥', Entertainment: '🎮', Education: '📚', Others: '📦',
+    'Stocks & Shares': '📈', 'Mutual Funds': '📊', 'Fixed Deposit': '🏦',
+    Crypto: '🪙', 'Real Estate': '🏢', Gold: '🥇', 'Provident Fund': '🛡️',
+    'Other Investment': '💎',
   };
   return map[cat] || '📁';
 }
@@ -481,10 +651,23 @@ function renderTransactions(filtered) {
  * @returns {string}
  */
 function _buildRow(t) {
-  const sign = t.type === 'income' ? '+' : '−';
-  const amountCls = t.type === 'income' ? 'amount--income' : 'amount--expense';
-  const typeCls = t.type === 'income' ? 'badge--income' : 'badge--expense';
-  const typeLabel = t.type === 'income' ? '📈 Income' : '📉 Expense';
+  let sign = '−';
+  let amountCls = 'amount--expense';
+  let typeCls = 'badge--expense';
+  let typeLabel = '📉 Expense';
+
+  if (t.type === 'income') {
+    sign = '+';
+    amountCls = 'amount--income';
+    typeCls = 'badge--income';
+    typeLabel = '📈 Income';
+  } else if (t.type === 'investment') {
+    sign = '−';
+    amountCls = 'text-investment';
+    typeCls = 'badge--investment';
+    typeLabel = '💹 Investment';
+  }
+
   const notesAttr = t.notes ? ` title="${_escapeHtml(t.notes)}"` : '';
 
   return `
@@ -672,7 +855,9 @@ function handleFormSubmit(e) {
   const activeTypeBtn = document.querySelector('.type-btn.active');
   const type = activeTypeBtn ? activeTypeBtn.dataset.type : 'income';
   const title = document.getElementById('txn-title').value.trim();
-  const amount = parseFloat(document.getElementById('txn-amount').value);
+  const rawAmount = parseFloat(document.getElementById('txn-amount').value);
+  // Store all transaction amounts internally in INR as base currency
+  const amount = toBaseINR(rawAmount);
   const category = document.getElementById('txn-category').value;
   const date = document.getElementById('txn-date').value;
   const notes = document.getElementById('txn-notes').value.trim();
@@ -772,9 +957,9 @@ function startEdit(id) {
 
   editingId = id;
 
-  // Populate form fields
+  // Populate form fields (convert internal INR base amount to active currency for form input)
   document.getElementById('txn-title').value = txn.title;
-  document.getElementById('txn-amount').value = txn.amount;
+  document.getElementById('txn-amount').value = convertAmount(txn.amount).toFixed(2);
   document.getElementById('txn-category').value = txn.category;
   document.getElementById('txn-date').value = txn.date;
   document.getElementById('txn-notes').value = txn.notes || '';
@@ -1096,21 +1281,177 @@ function init() {
   if (currencySelect) {
     currencySelect.addEventListener('change', function () {
       currencySymbol = this.value;
-      updateSetting('currency', currencySymbol); // Phase 3: persist currency preference
+      updateSetting('currency', currencySymbol); // Persist currency preference in LocalStorage
       // Update the form prefix
       const prefix = document.getElementById('currency-prefix');
       if (prefix) prefix.textContent = currencySymbol;
-      // Re-render everything with new symbol
+      // Re-render all dashboard cards, monthly stats, charts, and table rows with converted values
       updateDashboard();
       updateQuickStats();
       renderTransactions(_currentFiltered);
+      updateStats();
     });
   }
 
+  /* ─────────────────────── AUTHENTICATION & USER CONTROLLER ───────────────── */
+
+  /* ── Auth tab listeners ── */
+  const tabLogin = document.getElementById('tab-login');
+  const tabRegister = document.getElementById('tab-register');
+  if (tabLogin) tabLogin.addEventListener('click', () => switchAuthTab('login'));
+  if (tabRegister) tabRegister.addEventListener('click', () => switchAuthTab('register'));
+
+  /* ── Auth forms submission ── */
+  const loginForm = document.getElementById('login-form');
+  const regForm = document.getElementById('register-form');
+  if (loginForm) loginForm.addEventListener('submit', handleLoginSubmit);
+  if (regForm) regForm.addEventListener('submit', handleRegisterSubmit);
+
+  /* ── Logout button ── */
+  const logoutBtn = document.getElementById('logout-btn');
+  if (logoutBtn) logoutBtn.addEventListener('click', handleLogout);
+
   /* ─────────────────────── INITIAL RENDER ─────────────────────── */
-  updateDashboard();
-  updateQuickStats();
-  applyFilters();
+  checkAuthState();
+}
+
+/** Check current user session and toggle UI between Auth screen & Dashboard */
+async function checkAuthState() {
+  const user = getCurrentUser();
+  const authModal = document.getElementById('auth-modal');
+  const userProfileBar = document.getElementById('user-profile-bar');
+  const userDisplayName = document.getElementById('user-display-name');
+
+  // Initialize exchange rates from 12h LocalStorage cache or API
+  await initExchangeRates();
+
+  if (user) {
+    // Authenticated state
+    if (authModal) authModal.hidden = true;
+    if (userProfileBar) userProfileBar.hidden = false;
+    if (userDisplayName) userDisplayName.textContent = user.name || user.email;
+
+    // Load active user's settings and transactions
+    const settings = loadSettings();
+    currencySymbol = settings.currency || '₹';
+    const currencySelectEl = document.getElementById('currency-select');
+    if (currencySelectEl) currencySelectEl.value = currencySymbol;
+
+    const savedTheme = getStoredTheme();
+    if (savedTheme) document.documentElement.setAttribute('data-theme', savedTheme);
+
+    transactions = loadTransactions();
+    updateDashboard();
+    updateQuickStats();
+    applyFilters();
+  } else {
+    // Unauthenticated state
+    if (authModal) authModal.hidden = false;
+    if (userProfileBar) userProfileBar.hidden = true;
+    transactions = [];
+    updateDashboard();
+    updateQuickStats();
+    applyFilters();
+  }
+}
+
+/** Switch Auth tabs between Login and Register */
+function switchAuthTab(targetTab) {
+  const loginTab = document.getElementById('tab-login');
+  const regTab = document.getElementById('tab-register');
+  const loginPanel = document.getElementById('panel-login');
+  const regPanel = document.getElementById('panel-register');
+  const authAlert = document.getElementById('auth-alert');
+
+  if (authAlert) authAlert.hidden = true;
+
+  if (targetTab === 'login') {
+    if (loginTab) { loginTab.classList.add('active'); loginTab.setAttribute('aria-selected', 'true'); }
+    if (regTab) { regTab.classList.remove('active'); regTab.setAttribute('aria-selected', 'false'); }
+    if (loginPanel) loginPanel.hidden = false;
+    if (regPanel) regPanel.hidden = true;
+  } else {
+    if (regTab) { regTab.classList.add('active'); regTab.setAttribute('aria-selected', 'true'); }
+    if (loginTab) { loginTab.classList.remove('active'); loginTab.setAttribute('aria-selected', 'false'); }
+    if (regPanel) regPanel.hidden = false;
+    if (loginPanel) loginPanel.hidden = true;
+  }
+}
+
+/** Handle Login form submission */
+async function handleLoginSubmit(e) {
+  e.preventDefault();
+  const emailInput = document.getElementById('login-email');
+  const passInput = document.getElementById('login-password');
+  const alertEl = document.getElementById('auth-alert');
+
+  const email = emailInput ? emailInput.value : '';
+  const password = passInput ? passInput.value : '';
+
+  const result = await loginUser(email, password);
+  if (result.success) {
+    if (alertEl) {
+      alertEl.className = 'auth-alert auth-alert--success';
+      alertEl.textContent = 'Login successful! Loading dashboard...';
+      alertEl.hidden = false;
+    }
+    setTimeout(() => {
+      if (emailInput) emailInput.value = '';
+      if (passInput) passInput.value = '';
+      if (alertEl) alertEl.hidden = true;
+      checkAuthState();
+      showToast(`Welcome back, ${result.user.name || result.user.email}! 👋`, 'success');
+    }, 400);
+  } else {
+    if (alertEl) {
+      alertEl.className = 'auth-alert auth-alert--error';
+      alertEl.textContent = result.message;
+      alertEl.hidden = false;
+    }
+  }
+}
+
+/** Handle Register form submission */
+async function handleRegisterSubmit(e) {
+  e.preventDefault();
+  const nameInput = document.getElementById('reg-name');
+  const emailInput = document.getElementById('reg-email');
+  const passInput = document.getElementById('reg-password');
+  const alertEl = document.getElementById('auth-alert');
+
+  const name = nameInput ? nameInput.value : '';
+  const email = emailInput ? emailInput.value : '';
+  const password = passInput ? passInput.value : '';
+
+  const result = await registerUser(name, email, password);
+  if (result.success) {
+    if (alertEl) {
+      alertEl.className = 'auth-alert auth-alert--success';
+      alertEl.textContent = 'Account created successfully!';
+      alertEl.hidden = false;
+    }
+    setTimeout(() => {
+      if (nameInput) nameInput.value = '';
+      if (emailInput) emailInput.value = '';
+      if (passInput) passInput.value = '';
+      if (alertEl) alertEl.hidden = true;
+      checkAuthState();
+      showToast(`Account created! Welcome, ${result.user.name}! 🎉`, 'success');
+    }, 400);
+  } else {
+    if (alertEl) {
+      alertEl.className = 'auth-alert auth-alert--error';
+      alertEl.textContent = result.message;
+      alertEl.hidden = false;
+    }
+  }
+}
+
+/** Handle Logout button */
+function handleLogout() {
+  logoutUser();
+  checkAuthState();
+  showToast('Logged out securely.', 'info');
 }
 
 /* ── Bootstrap on DOM ready ── */
@@ -1119,3 +1460,4 @@ if (document.readyState === 'loading') {
 } else {
   init();
 }
+
