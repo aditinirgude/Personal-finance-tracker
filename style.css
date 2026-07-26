@@ -1771,170 +1771,725 @@ h6 {
   border-radius: 4px;
 }
 
-/* ─── 28. RESPONSIVE — TABLET (≤ 1024px) ─────────────────────────────────── */
+/* =============================================================================
+   RESPONSIVE DESIGN SYSTEM
+   Breakpoints:
+     ≥ 1440px  — Desktop / Wide monitors (default base)
+     ≤ 1440px  — Large laptop adjustment
+     ≤ 1024px  — Tablet landscape / small laptops
+     ≤  900px  — Tablet portrait / sidebar collapse
+     ≤  768px  — Small tablets
+     ≤  640px  — Large phones
+     ≤  480px  — Small phones
+     ≤  380px  — Tiny / very small phones
+   ============================================================================= */
+
+/* ─── R1. ULTRA-WIDE / LARGE DESKTOP (≥ 1440px) ─────────────────────────── */
+@media (min-width: 1440px) {
+  :root {
+    --container-max: 1360px;
+  }
+
+  /* Dashboard: all 5 cards in one row, comfortable spacing */
+  .dashboard-grid {
+    grid-template-columns: repeat(5, 1fr);
+    gap: var(--space-6);
+  }
+
+  /* Stats: 3-column with comfortable gaps */
+  .stats-grid {
+    gap: var(--space-6);
+  }
+}
+
+/* ─── R2. LARGE LAPTOP (≤ 1440px) ────────────────────────────────────────── */
+@media (max-width: 1440px) {
+  :root {
+    --container-max: 1200px;
+  }
+}
+
+/* ─── R3. TABLET LANDSCAPE / SMALL LAPTOP (≤ 1024px) ────────────────────── */
 @media (max-width: 1024px) {
   :root {
     --sidebar-width: 300px;
+    --header-h: 68px;
   }
 
+  /* Hide live clock to save header space */
+  .header-center {
+    display: none;
+  }
+
+  /* Dashboard: 2×3 grid on tablet */
+  .dashboard-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--space-4);
+  }
+
+  /* Stats: 2-column layout; health score spans full width */
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--space-4);
+  }
+
+  .stats-grid > :last-child {
+    grid-column: span 2;
+  }
+
+  /* Shrink sidebar slightly */
+  .sidebar {
+    position: static; /* Un-sticky on smaller screens */
+  }
+
+  /* Slightly smaller card amounts */
+  .card-amount {
+    font-size: var(--font-size-xl);
+  }
+}
+
+/* ─── R4. TABLET PORTRAIT / SIDEBAR COLLAPSE (≤ 900px) ──────────────────── */
+@media (max-width: 900px) {
+  /* Stack sidebar above main content */
+  .main-layout {
+    grid-template-columns: 1fr;
+    gap: var(--space-5);
+  }
+
+  /* Sidebar: side-by-side cards (form + quick stats) */
+  .sidebar {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-4);
+    position: static;
+  }
+
+  /* Dashboard: 2-column on tablets */
   .dashboard-grid {
     grid-template-columns: repeat(2, 1fr);
     gap: var(--space-4);
   }
 
-  .stats-grid {
-    grid-template-columns: 1fr 1fr;
-  }
-
-  .stats-grid> :last-child {
-    grid-column: span 2;
-  }
-
-  .header-center {
+  /* Transaction table: reasonable column hiding */
+  .th-date, .td-date {
     display: none;
   }
-}
 
-/* ─── 29. RESPONSIVE — SIDEBAR COLLAPSE (≤ 900px) ───────────────────────── */
-@media (max-width: 900px) {
-  .main-layout {
-    grid-template-columns: 1fr;
-  }
-
-  .sidebar {
-    position: static;
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: var(--space-5);
+  /* Reduce top-category grid label width */
+  .top-category-item {
+    grid-template-columns: 90px 1fr 70px;
   }
 }
 
-/* ─── 30. RESPONSIVE — MOBILE (≤ 640px) ──────────────────────────────────── */
-@media (max-width: 640px) {
+/* ─── R5. SMALL TABLET (≤ 768px) ─────────────────────────────────────────── */
+@media (max-width: 768px) {
   :root {
-    --header-h: 60px;
+    --header-h: 64px;
     --space-6: 1.25rem;
   }
 
+  /* Container: tighter side padding */
   .container {
-    padding: 0 var(--space-4);
+    padding: 0 var(--space-5);
   }
 
+  /* Main content: less vertical breathing room */
   .main-content {
-    padding: var(--space-5) 0 var(--space-8);
+    padding: var(--space-6) 0 var(--space-10);
   }
 
-  .dashboard-grid {
-    grid-template-columns: 1fr 1fr;
+  /* Header: tighten inner gap */
+  .header-inner {
     gap: var(--space-3);
   }
 
-  .card-amount {
-    font-size: var(--font-size-xl);
-  }
-
-  .sidebar {
-    grid-template-columns: 1fr;
-  }
-
-  .stats-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .stats-grid> :last-child {
-    grid-column: span 1;
-  }
-
+  /* Shorten brand subtitle text */
   .brand-subtitle {
     display: none;
   }
 
+  /* Currency selector: compact */
   .currency-select {
-    display: none;
+    font-size: var(--font-size-xs);
+    padding: var(--space-1) var(--space-2);
+    padding-right: 24px;
   }
 
+  /* Dashboard: 2-column; last card spans full width if odd */
+  .dashboard-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--space-3);
+  }
+
+  /* 5 cards: Savings Rate (last) spans both columns */
+  .dashboard-grid .dashboard-card:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+  }
+
+  /* Sidebar: stack vertically */
+  .sidebar {
+    grid-template-columns: 1fr;
+  }
+
+  /* Stats: single column */
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .stats-grid > :last-child {
+    grid-column: span 1;
+  }
+
+  /* Filter row: wrap items */
   .filter-row {
-    flex-direction: column;
-    align-items: stretch;
+    flex-wrap: wrap;
+    gap: var(--space-2);
   }
 
-  .search-wrap {
-    min-width: unset;
-  }
-
-  .filter-select-wrap {
-    min-width: unset;
-  }
-
+  /* Date filter: wrap */
   .date-filter-wrap {
     margin-left: 0;
+    width: 100%;
   }
 
   .date-filter-inputs {
     flex-wrap: wrap;
+    gap: var(--space-2);
   }
 
   .date-input {
     width: 100%;
     flex: 1;
-    min-width: 120px;
+    min-width: 130px;
   }
 
-  .form-actions {
-    grid-template-columns: 1fr 1fr;
+  /* Search wrap: full width */
+  .search-wrap {
+    min-width: unset;
+    width: 100%;
   }
 
+  /* Filter select: full width */
+  .filter-select-wrap {
+    min-width: unset;
+    width: 100%;
+  }
+
+  .filter-select {
+    width: 100%;
+    min-width: unset;
+  }
+
+  /* Transaction table: smaller font, hide date */
   .transactions-table {
     font-size: var(--font-size-xs);
   }
 
-  .txn-title-text {
-    max-width: 120px;
-  }
-
-  .th-type,
-  .txn-type-cell {
+  .th-date, .td-date {
     display: none;
   }
 
+  /* Truncate long titles */
+  .txn-title {
+    max-width: 140px;
+  }
+
+  /* Type filter: wrap pills */
+  .type-filter-group {
+    flex-wrap: wrap;
+    gap: var(--space-1);
+  }
+
+  /* Modal: smaller padding on tablets */
+  .modal-box {
+    padding: var(--space-5);
+  }
+
+  /* Toast: full-width on narrow screens */
+  .toast-container {
+    right: var(--space-3);
+    left: var(--space-3);
+    max-width: unset;
+    bottom: var(--space-4);
+  }
+
+  /* Footer links: wrap */
   .footer-links {
+    flex-wrap: wrap;
     gap: var(--space-4);
+    justify-content: center;
+  }
+
+  /* Monthly chart: make scrollable horizontally if needed */
+  .monthly-chart-bars {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* ─── R6. LARGE PHONES (≤ 640px) ─────────────────────────────────────────── */
+@media (max-width: 640px) {
+  :root {
+    --header-h: 60px;
+    --space-8: 1.5rem;
+    --space-12: 2.5rem;
+  }
+
+  /* Container: minimum safe padding so nothing touches edges */
+  .container {
+    padding: 0 var(--space-4);
+  }
+
+  /* Main content padding */
+  .main-content {
+    padding: var(--space-5) 0 var(--space-8);
+  }
+
+  /* Dashboard: 2-column; last card spans full width if it's alone */
+  .dashboard-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--space-3);
+  }
+
+  /* If there are 5 cards (odd), the last one spans both columns */
+  .dashboard-grid .dashboard-card:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+  }
+
+  /* Card amounts: slightly smaller */
+  .card-amount {
+    font-size: var(--font-size-lg);
+  }
+
+  /* Dashboard section: tighter bottom margin */
+  .dashboard-section {
+    margin-bottom: var(--space-5);
+  }
+
+  /* Sidebar: single column */
+  .sidebar {
+    grid-template-columns: 1fr;
+    gap: var(--space-4);
+  }
+
+  /* Form: tighter padding */
+  .transaction-form {
+    padding: var(--space-4);
+    gap: var(--space-4);
+  }
+
+  /* Form actions: 2 equal columns */
+  .form-actions {
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-3);
+  }
+
+  /* Type filter group: stack if overflow */
+  .type-filter-group {
+    gap: var(--space-1);
+  }
+
+  .filter-type-btn {
+    padding: var(--space-1) var(--space-3);
+    font-size: var(--font-size-xs);
+  }
+
+  /* Filter card: tighter */
+  .filter-card {
+    padding: var(--space-3) var(--space-4);
+    gap: var(--space-3);
+  }
+
+  /* TRANSACTION TABLE → CARD LAYOUT on mobile
+     Hide the table header and convert each row into a stacked card */
+  .transactions-table thead {
+    display: none;
+  }
+
+  .transactions-table,
+  .transactions-table tbody,
+  .transactions-table tr,
+  .transactions-table td {
+    display: block;
+    width: 100%;
+  }
+
+  /* Each transaction row becomes a card */
+  .transactions-table tbody tr,
+  .txn-row {
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    margin-bottom: var(--space-3);
+    padding: var(--space-3) var(--space-4);
+    background: var(--bg-card);
+    box-shadow: var(--shadow-sm);
+    display: grid;
+    /* Layout:  [title + category] [badge] [amount] [actions] */
+    grid-template-columns: 1fr auto;
+    grid-template-rows: auto auto auto;
+    gap: var(--space-2) var(--space-3);
+    align-items: center;
+    border-bottom: 1px solid var(--border-color);
+    animation: fadeSlideUp 0.22s ease both;
+  }
+
+  /* Title cell: top-left, spans column 1 */
+  .txn-row td:nth-child(1) {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  /* Type badge cell: top-right */
+  .txn-row td:nth-child(2) {
+    grid-column: 2;
+    grid-row: 1;
+    text-align: right;
+  }
+
+  /* Date cell: hide on mobile to save space */
+  .txn-row td:nth-child(3) {
+    display: none;
+  }
+
+  /* Amount: second row, left aligned */
+  .txn-row td:nth-child(4) {
+    grid-column: 1;
+    grid-row: 2;
+    text-align: left;
+    font-size: var(--font-size-base);
+  }
+
+  /* Actions: second row, right aligned */
+  .txn-row td:nth-child(5) {
+    grid-column: 2;
+    grid-row: 2;
+    text-align: right;
+  }
+
+  /* Remove default row-level border-bottom since each row is now a card */
+  .txn-row {
+    border-bottom: none !important;
+  }
+
+  /* Allow longer title text on mobile cards */
+  .txn-title {
+    max-width: 100%;
+    white-space: normal;
+  }
+
+  /* Stats: single column */
+  .stats-grid {
+    grid-template-columns: 1fr;
+    gap: var(--space-4);
+  }
+
+  .stats-grid > :last-child {
+    grid-column: span 1;
+  }
+
+  /* Health score: stack vertically */
+  .health-score-wrap {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  /* Monthly chart: allow horizontal scroll */
+  .monthly-chart-bars {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    min-height: 120px;
+    gap: var(--space-2);
+  }
+
+  .mc-group {
+    min-width: 36px;
+  }
+
+  /* Top category items: narrower label */
+  .top-category-item {
+    grid-template-columns: 80px 1fr 60px;
+  }
+
+  /* Modal: full-width on mobile */
+  .modal-box {
+    padding: var(--space-5) var(--space-4);
+    max-width: 100%;
   }
 
   .modal-actions {
     flex-direction: column;
+    gap: var(--space-2);
   }
 
   .modal-actions .btn {
     width: 100%;
   }
 
+  /* Toast: full width at bottom of screen */
   .toast-container {
+    bottom: var(--space-3);
     right: var(--space-3);
     left: var(--space-3);
     max-width: unset;
   }
 
-  .top-category-item {
-    grid-template-columns: 80px 1fr 60px;
+  /* Auth modal: tighter padding */
+  .auth-box {
+    padding: var(--space-5) var(--space-4);
   }
 
-  .health-score-wrap {
-    flex-direction: column;
-    align-items: flex-start;
+  /* Currency selector: hide on mobile (accessed via settings) */
+  .currency-select {
+    display: none;
+  }
+
+  /* Footer: compact */
+  .footer {
+    padding: var(--space-6) 0;
+  }
+
+  .footer-links {
+    gap: var(--space-3);
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  /* Quick stats: tighter */
+  .quick-stats-list {
+    padding: var(--space-3) var(--space-4);
+  }
+
+  /* Card header: tighter padding */
+  .card-header {
+    padding: var(--space-4);
   }
 }
 
-/* ─── 31. VERY SMALL MOBILE (≤ 380px) ────────────────────────────────────── */
-@media (max-width: 380px) {
+/* ─── R7. SMALL PHONES (≤ 480px) ─────────────────────────────────────────── */
+@media (max-width: 480px) {
+  /* Container: minimal side padding */
+  .container {
+    padding: 0 var(--space-3);
+  }
+
+  /* Header: hide brand subtitle */
+  .brand-subtitle {
+    display: none;
+  }
+
+  /* Header: smaller brand logo */
+  .brand-logo {
+    font-size: 1.6rem;
+  }
+
+  /* Brand title: slightly smaller */
+  .brand-title {
+    font-size: var(--font-size-base);
+  }
+
+  /* User name in header: shorten */
+  .user-name {
+    max-width: 80px;
+  }
+
+  /* Dashboard: 2 columns still but tighter gap */
   .dashboard-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--space-2);
+  }
+
+  /* Smaller card icon */
+  .card-icon {
+    width: 40px;
+    height: 40px;
+    font-size: 1.4rem;
+  }
+
+  /* Card: tighter padding */
+  .dashboard-card {
+    padding: var(--space-3) var(--space-4);
+    gap: var(--space-2);
+  }
+
+  /* Card amounts: compact */
+  .card-amount {
+    font-size: var(--font-size-md);
+  }
+
+  /* Form: full width inputs */
+  .form-input,
+  .form-select {
+    font-size: var(--font-size-base); /* Prevent iOS zoom on focus */
+    min-height: 44px; /* Accessible touch target */
+  }
+
+  /* Form actions: stack vertically */
+  .form-actions {
     grid-template-columns: 1fr;
   }
 
-  .brand-logo {
-    font-size: 1.5rem;
+  /* Type toggle: compact */
+  .type-btn {
+    font-size: 0.72rem;
+    padding: 0.4rem 0.1rem;
+    gap: 2px;
+  }
+
+  /* Type toggle emoji: hide emoji on very small screens */
+  .type-btn span[aria-hidden] {
+    display: none;
+  }
+
+  /* Section title: smaller */
+  .section-title {
+    font-size: var(--font-size-base);
+  }
+
+  /* Filter type buttons: compact */
+  .filter-type-btn {
+    padding: var(--space-1) var(--space-2);
+    font-size: 0.72rem;
+  }
+
+  /* Quick stat items: compact */
+  .quick-stat-item {
+    padding: var(--space-2) 0;
+  }
+
+  /* Stats card title: compact */
+  .stats-card-title {
+    padding: var(--space-4);
+    font-size: var(--font-size-base);
+  }
+
+  /* Top category: ultra-compact */
+  .top-category-item {
+    grid-template-columns: 70px 1fr 55px;
+    gap: var(--space-2);
+  }
+
+  .top-categories-list {
+    padding: var(--space-3) var(--space-4);
+  }
+
+  /* Monthly chart: allow scroll */
+  .monthly-chart-bars {
+    gap: var(--space-1);
+  }
+
+  .mc-group {
+    min-width: 28px;
+  }
+
+  .mc-label {
+    font-size: 0.6rem;
+  }
+
+  /* Toast: tighter */
+  .toast {
+    padding: var(--space-3);
+    font-size: var(--font-size-xs);
+  }
+
+  /* Auth box: minimal padding */
+  .auth-box {
+    padding: var(--space-4) var(--space-3);
+  }
+
+  .auth-title {
+    font-size: var(--font-size-xl);
+  }
+
+  /* Footer: very compact */
+  .footer-inner {
+    gap: var(--space-3);
+  }
+
+  .footer-links {
+    gap: var(--space-2);
+  }
+
+  .footer-link {
+    font-size: var(--font-size-xs);
+  }
+
+  .footer-copy {
+    font-size: 0.65rem;
   }
 }
+
+/* ─── R8. TINY PHONES (≤ 380px) ──────────────────────────────────────────── */
+@media (max-width: 380px) {
+  :root {
+    --header-h: 56px;
+  }
+
+  /* Container: minimum side margin */
+  .container {
+    padding: 0 var(--space-3);
+  }
+
+  /* Dashboard: single column for very tiny screens */
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+    gap: var(--space-2);
+  }
+
+  /* User name: hide to save header space */
+  .user-name {
+    display: none;
+  }
+
+  /* Brand logo: compact */
+  .brand-logo {
+    font-size: 1.4rem;
+  }
+
+  /* Logout button: icon only */
+  .logout-btn span:last-child {
+    display: none;
+  }
+
+  /* Theme toggle: compact */
+  .theme-toggle {
+    width: 52px;
+    height: 28px;
+  }
+
+  .theme-toggle-thumb {
+    width: 20px;
+    height: 20px;
+    top: 4px;
+    left: 4px;
+  }
+
+  [data-theme="dark"] .theme-toggle-thumb {
+    transform: translateX(24px);
+  }
+
+  /* Type filter: tiny pills */
+  .filter-type-btn {
+    padding: 3px var(--space-2);
+    font-size: 0.68rem;
+  }
+
+  /* Form actions: always stacked */
+  .form-actions {
+    grid-template-columns: 1fr;
+  }
+
+  /* Health score: tighter */
+  .health-circle {
+    width: 72px;
+    height: 72px;
+  }
+
+  .health-score-text {
+    font-size: var(--font-size-lg);
+  }
+}
+
+
 
 /* ─── 32. PHASE 2 – DYNAMIC ELEMENT STYLES ───────────────────────────────── */
 
