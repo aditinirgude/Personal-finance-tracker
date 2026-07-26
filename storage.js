@@ -441,4 +441,47 @@ function saveRatesTimestamp(timestamp) {
   return storageSet(STORAGE_KEYS.ratesTimestamp, timestamp);
 }
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   8. USER PIN MANAGEMENT (SECURITY PIN)
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/**
+ * Get stored PIN hash for specified user email (or active user).
+ * @param {string} [email]
+ * @returns {string|null}
+ */
+function getUserPinHash(email) {
+  const userEmail = email || getCurrentUserEmail();
+  if (!userEmail) return null;
+  const uData = getUserData(userEmail);
+  return uData.pinHash || null;
+}
+
+/**
+ * Save SHA-256 hashed 4-digit PIN for specified user email (or active user).
+ * @param {string} pinHash
+ * @param {string} [email]
+ * @returns {boolean}
+ */
+function saveUserPinHash(pinHash, email) {
+  const userEmail = email || getCurrentUserEmail();
+  if (!userEmail) return false;
+  const uData = getUserData(userEmail);
+  uData.pinHash = pinHash;
+  return saveUserData(userEmail, uData);
+}
+
+/**
+ * Verify entered 4-digit PIN against stored SHA-256 hash.
+ * @param {string} enteredPin
+ * @param {string} [email]
+ * @returns {Promise<boolean>}
+ */
+async function verifyUserPin(enteredPin, email) {
+  const storedHash = getUserPinHash(email);
+  if (!storedHash) return false;
+  const enteredHash = await hashPassword(enteredPin);
+  return enteredHash === storedHash;
+}
+
 
