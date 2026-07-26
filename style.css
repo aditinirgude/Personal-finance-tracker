@@ -1898,21 +1898,115 @@ h6 {
     padding: var(--space-6) 0 var(--space-10);
   }
 
-  /* Header: tighten inner gap */
-  .header-inner {
-    gap: var(--space-3);
+  /* Mobile Header Redesign: Multi-row layout with 44px minimum touch targets */
+  .header {
+    height: auto !important;
+    min-height: 60px;
+    padding: 8px 0;
   }
 
-  /* Shorten brand subtitle text */
+  .header-inner {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    grid-template-rows: auto auto;
+    gap: 8px 12px;
+    align-items: center;
+    height: auto !important;
+  }
+
+  /* Row 1, Left: Finance Tracker Brand Logo & Title */
+  .header-brand {
+    grid-column: 1;
+    grid-row: 1;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
   .brand-subtitle {
     display: none;
   }
 
-  /* Currency selector: compact */
+  .brand-logo {
+    font-size: 1.75rem;
+  }
+
+  .brand-title {
+    font-size: 1.1rem;
+  }
+
+  /* Promote header actions children into header-inner grid */
+  .header-actions {
+    display: contents;
+  }
+
+  /* Row 1, Right: Theme Toggle (Identical styling on all devices) */
+  #theme-toggle-btn.theme-toggle {
+    grid-column: 2;
+    grid-row: 1;
+    justify-self: end;
+  }
+
+  /* Row 2, Left: User Profile & Logout together */
+  #user-profile-bar.user-profile-bar {
+    grid-column: 1;
+    grid-row: 2;
+    justify-self: start;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 10px;
+    min-height: 44px;
+    background: var(--bg-hover);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius-pill);
+    font-size: 0.82rem;
+    max-width: 100%;
+  }
+
+  .user-name {
+    max-width: 90px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-weight: var(--font-weight-semi);
+  }
+
+  .logout-btn {
+    min-height: 36px;
+    padding: 4px 10px;
+    font-size: 0.78rem;
+    border-radius: var(--border-radius-sm);
+  }
+
+  /* Row 2, Right: Currency Selector (100% visible & 44px touch target) */
+  .currency-selector-wrap {
+    grid-column: 2;
+    grid-row: 2;
+    justify-self: end;
+    display: flex;
+    align-items: center;
+  }
+
   .currency-select {
-    font-size: var(--font-size-xs);
-    padding: var(--space-1) var(--space-2);
-    padding-right: 24px;
+    display: flex !important;
+    align-items: center;
+    min-height: 44px;
+    padding: 0 12px;
+    padding-right: 28px;
+    font-size: 0.85rem;
+    font-weight: var(--font-weight-semi);
+    background: var(--bg-input);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius-sm);
+    color: var(--text-primary);
+    cursor: pointer;
+  }
+
+  /* When User Profile is hidden (unauthenticated), shift currency selector to left */
+  #user-profile-bar[hidden] ~ .currency-selector-wrap {
+    grid-column: 1 / -1;
+    justify-self: start;
   }
 
   /* Dashboard: 2-column; last card spans full width if odd */
@@ -2238,10 +2332,7 @@ h6 {
     padding: var(--space-5) var(--space-4);
   }
 
-  /* Currency selector: hide on mobile (accessed via settings) */
-  .currency-select {
-    display: none;
-  }
+
 
   /* Footer: compact */
   .footer {
@@ -2450,22 +2541,7 @@ h6 {
     display: none;
   }
 
-  /* Theme toggle: compact */
-  .theme-toggle {
-    width: 52px;
-    height: 28px;
-  }
 
-  .theme-toggle-thumb {
-    width: 20px;
-    height: 20px;
-    top: 4px;
-    left: 4px;
-  }
-
-  [data-theme="dark"] .theme-toggle-thumb {
-    transform: translateX(24px);
-  }
 
   /* Type filter: tiny pills */
   .filter-type-btn {
@@ -3320,5 +3396,172 @@ h6 {
   color: var(--text-muted);
   margin-top: 2px;
   display: block;
+}
+
+/* ─── 46. SECURITY PIN MODALS & KEYPAD ─────────────────────────────────── */
+
+.pin-modal-box {
+  max-width: 400px;
+  text-align: center;
+}
+
+.pin-header-icon,
+.pin-user-avatar {
+  font-size: 2.75rem;
+  margin-bottom: var(--space-2);
+}
+
+.pin-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.pin-step {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.pin-label {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-secondary);
+}
+
+.pin-inputs-wrap {
+  display: flex;
+  justify-content: center;
+  gap: var(--space-3);
+  margin: var(--space-2) 0;
+}
+
+.pin-digit-box {
+  width: 52px;
+  height: 58px;
+  text-align: center;
+  font-size: 1.5rem;
+  font-weight: var(--font-weight-bold);
+  color: var(--brand-primary);
+  background: var(--bg-input);
+  border: 2px solid var(--border-color);
+  border-radius: var(--border-radius);
+  outline: none;
+  transition: all var(--transition-fast);
+  -webkit-text-security: disc; /* Fallback for password masking */
+}
+
+.pin-digit-box:focus {
+  border-color: var(--brand-primary);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.25);
+  background: var(--bg-card);
+  transform: scale(1.05);
+}
+
+.pin-digit-box.filled {
+  border-color: var(--brand-primary);
+  background: var(--brand-primary-l);
+}
+
+.pin-digit-box.error {
+  border-color: var(--color-expense);
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.25);
+  animation: shake 0.35s ease;
+}
+
+/* Numeric Keypad */
+.pin-keypad {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-2.5);
+  max-width: 280px;
+  margin: var(--space-4) auto 0;
+}
+
+.pin-key {
+  height: 48px;
+  border-radius: var(--border-radius);
+  border: 1px solid var(--border-color);
+  background: var(--bg-card-alt);
+  color: var(--text-primary);
+  font-size: 1.25rem;
+  font-weight: var(--font-weight-semi);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition-fast);
+  user-select: none;
+}
+
+.pin-key:hover {
+  background: var(--bg-hover);
+  border-color: var(--brand-primary);
+  transform: translateY(-1px);
+}
+
+.pin-key:active {
+  transform: scale(0.95);
+  background: var(--brand-primary-l);
+}
+
+.pin-key-action {
+  font-size: 0.95rem;
+  color: var(--text-secondary);
+}
+
+/* Lockout Banner */
+.pin-lockout-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: var(--border-radius);
+  color: var(--color-expense);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  margin-bottom: var(--space-4);
+  animation: fadeIn 0.3s ease;
+}
+
+/* PIN Footer actions */
+.pin-footer-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+}
+
+.btn-link {
+  background: none;
+  border: none;
+  color: var(--brand-primary);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  cursor: pointer;
+  padding: 4px var(--space-1);
+}
+
+.btn-link:hover {
+  text-decoration: underline;
+  color: var(--brand-primary-h);
+}
+
+.pin-footer-dot {
+  color: var(--text-muted);
+  font-size: var(--font-size-xs);
+}
+
+/* Disabled state when locked out */
+.pin-digit-box:disabled,
+.pin-key:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  pointer-events: none;
 }
 
