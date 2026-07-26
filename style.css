@@ -210,6 +210,17 @@ h6 {
 }
 
 /* ─── 5. UTILITY CLASSES ──────────────────────────────────────────────────── */
+
+/*
+  Critical Fix: Ensure the HTML [hidden] attribute always hides elements,
+  even when a CSS class sets display to flex/grid/block.
+  Without this, .pin-lockout-banner { display: flex; } overrides [hidden]
+  and makes the lockout banner permanently visible.
+*/
+[hidden] {
+  display: none !important;
+}
+
 .visually-hidden {
   position: absolute !important;
   width: 1px;
@@ -3511,8 +3522,8 @@ h6 {
   color: var(--text-secondary);
 }
 
-/* Lockout Banner */
-.pin-lockout-banner {
+/* Lockout Banner — only displayed (flex) when JS removes the [hidden] attribute */
+.pin-lockout-banner:not([hidden]) {
   display: flex;
   align-items: center;
   justify-content: center;
