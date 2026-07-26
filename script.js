@@ -1362,11 +1362,15 @@ async function checkAuthState() {
   }
 
   if (!isPinUnlocked) {
-    // User has PIN, but current session is locked (e.g. page refresh / reopen)
+    // User has PIN, but current session is locked (e.g. page refresh / reopen).
+    // FIX: Check if a previous lockout is still active or has already expired before
+    // displaying the PIN lock screen, so we never show a stale lockout banner.
     if (pinSetupModal) pinSetupModal.hidden = true;
     if (pinLockModal) pinLockModal.hidden = false;
     const lockUserName = document.getElementById('pin-lock-user-name');
     if (lockUserName) lockUserName.textContent = user.name || user.email;
+    // Restore lockout state from localStorage (clears expired locks automatically)
+    checkAndRestorePinLockout();
     setTimeout(() => focusPinBox('verify', 0), 100);
     return;
   }
@@ -1501,6 +1505,125 @@ let isPinUnlocked = false;
 let failedPinAttempts = 0;
 let lockoutTimerInterval = null;
 let isResettingPin = false;
+
+/* ── PIN Lockout Persistence Helpers ──────────────────────────────────────
+   Bug Fix: Lockout state is persisted to localStorage so that:
+   - A valid lockout survives page refresh / reopen.
+   - An expired lockout is automatically cleared on page load.
+   - failedPinAttempts is synced to localStorage so in-memory state
+     is never out-of-sync with what the user actually experienced.
+   Keys are scoped per-user email to prevent cross-user data leakage.
+   ────────────────────────────────────────────────────────────────────────── */
+
+/**
+ * Get the lockout storage key scoped to the current user's email.
+ * @returns {string}
+ */
+function getPinLockoutKey() {
+  const user = getCurrentUser();
+  return user ? `pin_lockout_expiry_${user.email}` : 'pin_lockout_expiry_guest';
+}
+
+/**
+ * Get the failed-attempts storage key scoped to the current user's email.
+ * @returns {string}
+ */
+function getPinAttemptsKey() {
+  const user = getCurrentUser();
+  return user ? `pin_failed_attempts_${user.email}` : 'pin_failed_attempts_guest';
+}
+
+/**
+ * Persist the lockout expiry timestamp to localStorage.
+ * @param {number} expiryTimestamp - Unix ms timestamp when lockout expires
+ */
+function savePinLockoutExpiry(expiryTimestamp) {
+  try { localStorage.setItem(getPinLockoutKey(), String(expiryTimestamp)); } catch (e) {}
+}
+
+/**
+ * Read the stored lockout expiry timestamp from localStorage.
+ * @returns {number} 0 if not set
+ */
+function getStoredPinLockoutExpiry() {
+  try { return parseInt(localStorage.getItem(getPinLockoutKey()) || '0', 10) || 0; } catch (e) { return 0; }
+}
+
+/**
+ * Clear the stored lockout expiry from localStorage.
+ */
+function clearPinLockoutExpiry() {
+  try { localStorage.removeItem(getPinLockoutKey()); } catch (e) {}
+}
+
+/**
+ * Persist the failed attempts counter to localStorage.
+ * @param {number} count
+ */
+function savePinFailedAttempts(count) {
+  try { localStorage.setItem(getPinAttemptsKey(), String(count)); } catch (e) {}
+}
+
+/**
+ * Read the stored failed attempts counter from localStorage.
+ * @returns {number}
+ */
+function getStoredPinFailedAttempts() {
+  try { return parseInt(localStorage.getItem(getPinAttemptsKey()) || '0', 10) || 0; } catch (e) { return 0; }
+}
+
+/**
+ * Clear the stored failed attempts counter from localStorage.
+ */
+function clearPinFailedAttempts() {
+  try { localStorage.removeItem(getPinAttemptsKey()); } catch (e) {}
+}
+
+/**
+ * FIX: On PIN lock screen startup, check if a lockout is currently active or expired.
+ *
+ * - If lockout IS active (expiry is in the future): restore the UI lockout countdown
+ *   from the remaining time so reopening the page shows the correct remaining seconds.
+ * - If lockout HAS expired (expiry is in the past): automatically clear the lock,
+ *   reset failed attempts, and allow PIN entry immediately.
+ * - If no lockout exists: do nothing — normal PIN entry should be available.
+ *
+ * This prevents the "Too many failed attempts" banner from appearing falsely
+ * on page reopen when the user hasn't actually entered any wrong PINs.
+ */
+function checkAndRestorePinLockout() {
+  const storedExpiry = getStoredPinLockoutExpiry();
+  const now = Date.now();
+
+  if (storedExpiry === 0) {
+    // No lockout was ever set — normal state, restore failed attempt counter only
+    failedPinAttempts = getStoredPinFailedAttempts();
+    return;
+  }
+
+  if (now >= storedExpiry) {
+    // Lockout has already expired — clear it and allow fresh PIN entry
+    console.log('[PIN] Lockout expired. Clearing lock state.');
+    clearPinLockoutExpiry();
+    clearPinFailedAttempts();
+    failedPinAttempts = 0;
+    // Ensure any stale UI lockout state is removed
+    const banner = document.getElementById('pin-lockout-banner');
+    const boxes = document.querySelectorAll('.pin-digit-box[data-step="verify"]');
+    const keys = document.querySelectorAll('.pin-key');
+    if (banner) banner.hidden = true;
+    boxes.forEach(b => { b.disabled = false; b.classList.remove('error'); });
+    keys.forEach(k => { k.disabled = false; });
+    return;
+  }
+
+  // Lockout is still active — restore countdown from remaining seconds
+  const remainingMs = storedExpiry - now;
+  const remainingSeconds = Math.ceil(remainingMs / 1000);
+  console.log(`[PIN] Lockout still active. Resuming with ${remainingSeconds}s remaining.`);
+  failedPinAttempts = getStoredPinFailedAttempts();
+  startPinLockout(remainingSeconds, true /* resuming — do not reset expiry */);
+}
 
 /** Initialize PIN digit inputs (auto-focus, backspace, numeric mask) */
 function initPinControllers() {
@@ -1690,9 +1813,13 @@ async function submitPinVerification() {
 
   const isValid = await verifyUserPin(enteredPin);
   if (isValid) {
-    // PIN correct!
+    // PIN correct! Reset all lockout state in memory AND localStorage
     failedPinAttempts = 0;
     isPinUnlocked = true;
+    // FIX: Clear persisted lockout data so a future page refresh won't resurrect the lock
+    clearPinLockoutExpiry();
+    clearPinFailedAttempts();
+    if (lockoutTimerInterval) { clearInterval(lockoutTimerInterval); lockoutTimerInterval = null; }
     if (alertEl) alertEl.hidden = true;
 
     const lockModal = document.getElementById('pin-lock-modal');
@@ -1702,11 +1829,14 @@ async function submitPinVerification() {
     showToast('PIN verified! Welcome back. 👋', 'success');
     checkAuthState();
   } else {
-    // Incorrect PIN
+    // Incorrect PIN — increment counter and persist to localStorage
     failedPinAttempts++;
+    // FIX: Persist failed attempts so a page refresh doesn't lose the count
+    savePinFailedAttempts(failedPinAttempts);
     verifyBoxes.forEach(b => b.classList.add('error'));
 
     if (failedPinAttempts >= 5) {
+      // Trigger 30-second lockout and save expiry timestamp to localStorage
       startPinLockout(30);
     } else {
       const remaining = 5 - failedPinAttempts;
@@ -1720,8 +1850,14 @@ async function submitPinVerification() {
   }
 }
 
-/** Lock out PIN inputs for specified countdown duration (5 failed attempts) */
-function startPinLockout(seconds) {
+/**
+ * Lock out PIN inputs for specified countdown duration.
+ * FIX: Accepts a `resuming` flag — when true (i.e. restored from localStorage on page reload),
+ * we skip re-writing the expiry timestamp so the countdown reflects real remaining time.
+ * @param {number} seconds - Duration (or remaining time) in seconds
+ * @param {boolean} [resuming=false] - True when restoring an existing lockout from localStorage
+ */
+function startPinLockout(seconds, resuming = false) {
   const banner = document.getElementById('pin-lockout-banner');
   const timerEl = document.getElementById('pin-lockout-timer');
   const alertEl = document.getElementById('pin-lock-alert');
@@ -1738,6 +1874,14 @@ function startPinLockout(seconds) {
 
   if (lockoutTimerInterval) clearInterval(lockoutTimerInterval);
 
+  // FIX: Only write a new expiry timestamp when this is a fresh lockout (not a resume).
+  // This prevents the 30-second window from being extended on every page refresh.
+  if (!resuming) {
+    const expiryTimestamp = Date.now() + seconds * 1000;
+    savePinLockoutExpiry(expiryTimestamp);
+    savePinFailedAttempts(failedPinAttempts); // persist the attempt count too
+  }
+
   lockoutTimerInterval = setInterval(() => {
     timeLeft--;
     if (timerEl) timerEl.textContent = timeLeft;
@@ -1746,6 +1890,10 @@ function startPinLockout(seconds) {
       clearInterval(lockoutTimerInterval);
       lockoutTimerInterval = null;
       failedPinAttempts = 0;
+
+      // FIX: Clear persisted lockout state when the countdown finishes naturally
+      clearPinLockoutExpiry();
+      clearPinFailedAttempts();
 
       if (banner) banner.hidden = true;
       boxes.forEach(b => { b.disabled = false; b.classList.remove('error'); });
