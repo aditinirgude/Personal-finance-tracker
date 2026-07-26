@@ -105,6 +105,95 @@
     </div>
   </div>
 
+  <!-- ===== PIN SETUP MODAL ===== -->
+  <div id="pin-setup-modal" class="auth-overlay" role="dialog" aria-modal="true" aria-labelledby="pin-setup-heading" hidden>
+    <div class="auth-box card pin-modal-box">
+      <div class="auth-header">
+        <div class="pin-header-icon" aria-hidden="true">🔑</div>
+        <h2 id="pin-setup-heading" class="auth-title">Create Security PIN</h2>
+        <p class="auth-subtitle" id="pin-setup-desc">Set a 4-digit PIN to secure your account on this device</p>
+      </div>
+
+      <form id="pin-setup-form" class="pin-form" novalidate autocomplete="off">
+        <div class="pin-step" id="pin-step-create">
+          <label class="form-label pin-label">Enter 4-Digit PIN</label>
+          <div class="pin-inputs-wrap" id="pin-create-inputs">
+            <input type="password" maxlength="1" inputmode="numeric" pattern="[0-9]*" class="pin-digit-box" data-step="create" data-index="0" aria-label="PIN digit 1" />
+            <input type="password" maxlength="1" inputmode="numeric" pattern="[0-9]*" class="pin-digit-box" data-step="create" data-index="1" aria-label="PIN digit 2" />
+            <input type="password" maxlength="1" inputmode="numeric" pattern="[0-9]*" class="pin-digit-box" data-step="create" data-index="2" aria-label="PIN digit 3" />
+            <input type="password" maxlength="1" inputmode="numeric" pattern="[0-9]*" class="pin-digit-box" data-step="create" data-index="3" aria-label="PIN digit 4" />
+          </div>
+        </div>
+
+        <div class="pin-step" id="pin-step-confirm">
+          <label class="form-label pin-label">Confirm 4-Digit PIN</label>
+          <div class="pin-inputs-wrap" id="pin-confirm-inputs">
+            <input type="password" maxlength="1" inputmode="numeric" pattern="[0-9]*" class="pin-digit-box" data-step="confirm" data-index="0" aria-label="Confirm PIN digit 1" />
+            <input type="password" maxlength="1" inputmode="numeric" pattern="[0-9]*" class="pin-digit-box" data-step="confirm" data-index="1" aria-label="Confirm PIN digit 2" />
+            <input type="password" maxlength="1" inputmode="numeric" pattern="[0-9]*" class="pin-digit-box" data-step="confirm" data-index="2" aria-label="Confirm PIN digit 3" />
+            <input type="password" maxlength="1" inputmode="numeric" pattern="[0-9]*" class="pin-digit-box" data-step="confirm" data-index="3" aria-label="Confirm PIN digit 4" />
+          </div>
+        </div>
+
+        <button type="submit" id="pin-setup-submit-btn" class="btn btn-primary btn-full auth-btn">
+          <span aria-hidden="true">🔒</span> Save Security PIN
+        </button>
+      </form>
+
+      <div id="pin-setup-alert" class="auth-alert" hidden role="alert"></div>
+    </div>
+  </div>
+
+  <!-- ===== PIN LOCK VERIFICATION MODAL ===== -->
+  <div id="pin-lock-modal" class="auth-overlay" role="dialog" aria-modal="true" aria-labelledby="pin-lock-heading" hidden>
+    <div class="auth-box card pin-modal-box">
+      <div class="auth-header">
+        <div class="pin-user-avatar" aria-hidden="true">👤</div>
+        <h2 id="pin-lock-heading" class="auth-title">Welcome Back</h2>
+        <p class="auth-subtitle"><span id="pin-lock-user-name">User</span>, enter your 4-digit PIN</p>
+      </div>
+
+      <!-- Lockout countdown banner -->
+      <div id="pin-lockout-banner" class="pin-lockout-banner" hidden role="alert">
+        <span aria-hidden="true">⏳</span>
+        <span>Too many failed attempts. Try again in <strong id="pin-lockout-timer">30</strong>s.</span>
+      </div>
+
+      <div class="pin-verification-wrap">
+        <div class="pin-inputs-wrap" id="pin-verify-inputs">
+          <input type="password" maxlength="1" inputmode="numeric" pattern="[0-9]*" class="pin-digit-box" data-step="verify" data-index="0" aria-label="Verify PIN digit 1" />
+          <input type="password" maxlength="1" inputmode="numeric" pattern="[0-9]*" class="pin-digit-box" data-step="verify" data-index="1" aria-label="Verify PIN digit 2" />
+          <input type="password" maxlength="1" inputmode="numeric" pattern="[0-9]*" class="pin-digit-box" data-step="verify" data-index="2" aria-label="Verify PIN digit 3" />
+          <input type="password" maxlength="1" inputmode="numeric" pattern="[0-9]*" class="pin-digit-box" data-step="verify" data-index="3" aria-label="Verify PIN digit 4" />
+        </div>
+
+        <!-- On-screen numeric keypad -->
+        <div class="pin-keypad" id="pin-keypad">
+          <button type="button" class="pin-key" data-key="1">1</button>
+          <button type="button" class="pin-key" data-key="2">2</button>
+          <button type="button" class="pin-key" data-key="3">3</button>
+          <button type="button" class="pin-key" data-key="4">4</button>
+          <button type="button" class="pin-key" data-key="5">5</button>
+          <button type="button" class="pin-key" data-key="6">6</button>
+          <button type="button" class="pin-key" data-key="7">7</button>
+          <button type="button" class="pin-key" data-key="8">8</button>
+          <button type="button" class="pin-key" data-key="9">9</button>
+          <button type="button" class="pin-key pin-key-action" data-key="clear" title="Clear">C</button>
+          <button type="button" class="pin-key" data-key="0">0</button>
+          <button type="button" class="pin-key pin-key-action" data-key="backspace" title="Backspace">⌫</button>
+        </div>
+      </div>
+
+      <div class="pin-footer-actions">
+        <button type="button" id="forgot-pin-btn" class="btn btn-link pin-forgot-btn">Forgot PIN?</button>
+        <span class="pin-footer-dot">•</span>
+        <button type="button" id="pin-logout-btn" class="btn btn-link pin-logout-btn">Log in as another user</button>
+      </div>
+
+      <div id="pin-lock-alert" class="auth-alert" hidden role="alert"></div>
+    </div>
+  </div>
+
   <!-- ===== APP WRAPPER ===== -->
   <div class="app-wrapper">
 
