@@ -1792,6 +1792,12 @@ async function handlePinSetupSubmit(e) {
   isPinUnlocked = true;
   isResettingPin = false;
 
+  // Clear any stale lockout data so a previous failed-attempt session
+  // doesn't carry over into this new PIN setup
+  clearPinLockoutExpiry();
+  clearPinFailedAttempts();
+  failedPinAttempts = 0;
+
   if (alertEl) alertEl.hidden = true;
   clearPinBoxes('create');
   clearPinBoxes('confirm');
