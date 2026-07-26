@@ -1311,48 +1311,83 @@ function init() {
   const logoutBtn = document.getElementById('logout-btn');
   if (logoutBtn) logoutBtn.addEventListener('click', handleLogout);
 
+  /* ── PIN Controllers ── */
+  initPinControllers();
+
   /* ─────────────────────── INITIAL RENDER ─────────────────────── */
   checkAuthState();
 }
 
-/** Check current user session and toggle UI between Auth screen & Dashboard */
+/** Check current user session and toggle UI between Auth screen, PIN screens & Dashboard */
 async function checkAuthState() {
   const user = getCurrentUser();
   const authModal = document.getElementById('auth-modal');
+  const pinSetupModal = document.getElementById('pin-setup-modal');
+  const pinLockModal = document.getElementById('pin-lock-modal');
   const userProfileBar = document.getElementById('user-profile-bar');
   const userDisplayName = document.getElementById('user-display-name');
 
   // Initialize exchange rates from 12h LocalStorage cache or API
   await initExchangeRates();
 
-  if (user) {
-    // Authenticated state
-    if (authModal) authModal.hidden = true;
-    if (userProfileBar) userProfileBar.hidden = false;
-    if (userDisplayName) userDisplayName.textContent = user.name || user.email;
-
-    // Load active user's settings and transactions
-    const settings = loadSettings();
-    currencySymbol = settings.currency || '₹';
-    const currencySelectEl = document.getElementById('currency-select');
-    if (currencySelectEl) currencySelectEl.value = currencySymbol;
-
-    const savedTheme = getStoredTheme();
-    if (savedTheme) document.documentElement.setAttribute('data-theme', savedTheme);
-
-    transactions = loadTransactions();
-    updateDashboard();
-    updateQuickStats();
-    applyFilters();
-  } else {
-    // Unauthenticated state
+  if (!user) {
+    // Unauthenticated state -> Show Auth Modal
     if (authModal) authModal.hidden = false;
+    if (pinSetupModal) pinSetupModal.hidden = true;
+    if (pinLockModal) pinLockModal.hidden = true;
     if (userProfileBar) userProfileBar.hidden = true;
     transactions = [];
+    isPinUnlocked = false;
     updateDashboard();
     updateQuickStats();
     applyFilters();
+    return;
   }
+
+  // User is authenticated!
+  if (authModal) authModal.hidden = true;
+  if (userProfileBar) userProfileBar.hidden = false;
+  if (userDisplayName) userDisplayName.textContent = user.name || user.email;
+
+  const userPinHash = getUserPinHash(user.email);
+
+  if (!userPinHash || isResettingPin) {
+    // First time after signup OR Reset PIN requested -> Show Create 4-Digit PIN screen
+    if (pinSetupModal) pinSetupModal.hidden = false;
+    if (pinLockModal) pinLockModal.hidden = true;
+    const descEl = document.getElementById('pin-setup-desc');
+    if (descEl) descEl.textContent = isResettingPin ? 'Create a new 4-digit PIN for your account' : 'Set a 4-digit PIN to secure your account on this device';
+    setTimeout(() => focusPinBox('create', 0), 100);
+    return;
+  }
+
+  if (!isPinUnlocked) {
+    // User has PIN, but current session is locked (e.g. page refresh / reopen)
+    if (pinSetupModal) pinSetupModal.hidden = true;
+    if (pinLockModal) pinLockModal.hidden = false;
+    const lockUserName = document.getElementById('pin-lock-user-name');
+    if (lockUserName) lockUserName.textContent = user.name || user.email;
+    setTimeout(() => focusPinBox('verify', 0), 100);
+    return;
+  }
+
+  // Authenticated AND PIN Unlocked -> Show Dashboard!
+  if (pinSetupModal) pinSetupModal.hidden = true;
+  if (pinLockModal) pinLockModal.hidden = true;
+
+  // Load active user's settings and transactions
+  const settings = loadSettings();
+  currencySymbol = settings.currency || '₹';
+  const currencySelectEl = document.getElementById('currency-select');
+  if (currencySelectEl) currencySelectEl.value = currencySymbol;
+
+  const savedTheme = getStoredTheme();
+  if (savedTheme) document.documentElement.setAttribute('data-theme', savedTheme);
+
+  transactions = loadTransactions();
+  updateDashboard();
+  updateQuickStats();
+  applyFilters();
 }
 
 /** Switch Auth tabs between Login and Register */
@@ -1449,9 +1484,284 @@ async function handleRegisterSubmit(e) {
 
 /** Handle Logout button */
 function handleLogout() {
+  isPinUnlocked = false;
+  isResettingPin = false;
+  failedPinAttempts = 0;
+  if (lockoutTimerInterval) clearInterval(lockoutTimerInterval);
   logoutUser();
   checkAuthState();
   showToast('Logged out securely.', 'info');
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   14. SECURITY PIN CONTROLLER
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+let isPinUnlocked = false;
+let failedPinAttempts = 0;
+let lockoutTimerInterval = null;
+let isResettingPin = false;
+
+/** Initialize PIN digit inputs (auto-focus, backspace, numeric mask) */
+function initPinControllers() {
+  const digitBoxes = document.querySelectorAll('.pin-digit-box');
+  digitBoxes.forEach(box => {
+    box.addEventListener('input', function (e) {
+      const step = this.dataset.step;
+      const index = parseInt(this.dataset.index, 10);
+      const val = this.value.replace(/[^0-9]/g, '');
+      this.value = val;
+
+      if (val) {
+        this.classList.add('filled');
+        if (index < 3) {
+          focusPinBox(step, index + 1);
+        } else if (step === 'verify') {
+          // Auto-verify when 4th digit entered
+          submitPinVerification();
+        }
+      } else {
+        this.classList.remove('filled');
+      }
+    });
+
+    box.addEventListener('keydown', function (e) {
+      const step = this.dataset.step;
+      const index = parseInt(this.dataset.index, 10);
+
+      if (e.key === 'Backspace') {
+        if (!this.value && index > 0) {
+          focusPinBox(step, index - 1);
+        } else {
+          this.value = '';
+          this.classList.remove('filled');
+        }
+      }
+    });
+
+    box.addEventListener('paste', function (e) {
+      e.preventDefault();
+      const step = this.dataset.step;
+      const pasted = (e.clipboardData || window.clipboardData).getData('text').replace(/[^0-9]/g, '').slice(0, 4);
+      if (pasted.length === 4) {
+        const boxes = document.querySelectorAll(`.pin-digit-box[data-step="${step}"]`);
+        boxes.forEach((b, i) => {
+          b.value = pasted[i] || '';
+          if (pasted[i]) b.classList.add('filled');
+        });
+        if (step === 'verify') submitPinVerification();
+        else focusPinBox(step, 3);
+      }
+    });
+  });
+
+  // PIN Setup form submit
+  const setupForm = document.getElementById('pin-setup-form');
+  if (setupForm) setupForm.addEventListener('submit', handlePinSetupSubmit);
+
+  // Keypad click handlers
+  const keypadKeys = document.querySelectorAll('.pin-key');
+  keypadKeys.forEach(key => {
+    key.addEventListener('click', function () {
+      handleKeypadPress(this.dataset.key);
+    });
+  });
+
+  // Forgot PIN button
+  const forgotBtn = document.getElementById('forgot-pin-btn');
+  if (forgotBtn) forgotBtn.addEventListener('click', handleForgotPin);
+
+  // Logout / Switch User from PIN screen
+  const pinLogoutBtn = document.getElementById('pin-logout-btn');
+  if (pinLogoutBtn) pinLogoutBtn.addEventListener('click', handleLogout);
+}
+
+/** Focus specific PIN digit input box */
+function focusPinBox(step, index) {
+  const box = document.querySelector(`.pin-digit-box[data-step="${step}"][data-index="${index}"]`);
+  if (box && !box.disabled) {
+    box.focus();
+    box.select();
+  }
+}
+
+/** Clear all input boxes for a PIN step */
+function clearPinBoxes(step) {
+  const boxes = document.querySelectorAll(`.pin-digit-box[data-step="${step}"]`);
+  boxes.forEach(b => {
+    b.value = '';
+    b.classList.remove('filled', 'error');
+  });
+  focusPinBox(step, 0);
+}
+
+/** Handle numeric keypad button press */
+function handleKeypadPress(keyVal) {
+  const activeModal = document.getElementById('pin-lock-modal');
+  if (!activeModal || activeModal.hidden) return;
+
+  const boxes = Array.from(document.querySelectorAll('.pin-digit-box[data-step="verify"]'));
+  if (boxes[0] && boxes[0].disabled) return; // Locked out
+
+  if (keyVal === 'clear') {
+    clearPinBoxes('verify');
+    return;
+  }
+
+  if (keyVal === 'backspace') {
+    const filledBoxes = boxes.filter(b => b.value !== '');
+    if (filledBoxes.length > 0) {
+      const last = filledBoxes[filledBoxes.length - 1];
+      last.value = '';
+      last.classList.remove('filled');
+      last.focus();
+    }
+    return;
+  }
+
+  // Digit 0-9
+  const emptyBox = boxes.find(b => b.value === '');
+  if (emptyBox) {
+    emptyBox.value = keyVal;
+    emptyBox.classList.add('filled');
+    const idx = parseInt(emptyBox.dataset.index, 10);
+    if (idx < 3) {
+      focusPinBox('verify', idx + 1);
+    } else {
+      submitPinVerification();
+    }
+  }
+}
+
+/** Handle PIN Setup Form Submission (Create & Confirm) */
+async function handlePinSetupSubmit(e) {
+  e.preventDefault();
+  const createBoxes = Array.from(document.querySelectorAll('.pin-digit-box[data-step="create"]'));
+  const confirmBoxes = Array.from(document.querySelectorAll('.pin-digit-box[data-step="confirm"]'));
+  const alertEl = document.getElementById('pin-setup-alert');
+
+  const pin1 = createBoxes.map(b => b.value).join('');
+  const pin2 = confirmBoxes.map(b => b.value).join('');
+
+  if (pin1.length !== 4 || !/^\d{4}$/.test(pin1)) {
+    if (alertEl) {
+      alertEl.className = 'auth-alert auth-alert--error';
+      alertEl.textContent = 'Please enter a valid 4-digit numeric PIN.';
+      alertEl.hidden = false;
+    }
+    createBoxes.forEach(b => b.classList.add('error'));
+    return;
+  }
+
+  if (pin1 !== pin2) {
+    if (alertEl) {
+      alertEl.className = 'auth-alert auth-alert--error';
+      alertEl.textContent = 'PINs do not match. Please confirm your 4-digit PIN.';
+      alertEl.hidden = false;
+    }
+    confirmBoxes.forEach(b => b.classList.add('error'));
+    return;
+  }
+
+  // Hash & Save PIN securely using Web Crypto API
+  const pinHash = await hashPassword(pin1);
+  saveUserPinHash(pinHash);
+  isPinUnlocked = true;
+  isResettingPin = false;
+
+  if (alertEl) alertEl.hidden = true;
+  clearPinBoxes('create');
+  clearPinBoxes('confirm');
+
+  const setupModal = document.getElementById('pin-setup-modal');
+  if (setupModal) setupModal.hidden = true;
+
+  showToast('Security PIN saved successfully! 🔒', 'success');
+  checkAuthState();
+}
+
+/** Submit & verify entered 4-digit PIN */
+async function submitPinVerification() {
+  const verifyBoxes = Array.from(document.querySelectorAll('.pin-digit-box[data-step="verify"]'));
+  const alertEl = document.getElementById('pin-lock-alert');
+  const enteredPin = verifyBoxes.map(b => b.value).join('');
+
+  if (enteredPin.length !== 4) return;
+
+  const isValid = await verifyUserPin(enteredPin);
+  if (isValid) {
+    // PIN correct!
+    failedPinAttempts = 0;
+    isPinUnlocked = true;
+    if (alertEl) alertEl.hidden = true;
+
+    const lockModal = document.getElementById('pin-lock-modal');
+    if (lockModal) lockModal.hidden = true;
+
+    clearPinBoxes('verify');
+    showToast('PIN verified! Welcome back. 👋', 'success');
+    checkAuthState();
+  } else {
+    // Incorrect PIN
+    failedPinAttempts++;
+    verifyBoxes.forEach(b => b.classList.add('error'));
+
+    if (failedPinAttempts >= 5) {
+      startPinLockout(30);
+    } else {
+      const remaining = 5 - failedPinAttempts;
+      if (alertEl) {
+        alertEl.className = 'auth-alert auth-alert--error';
+        alertEl.textContent = `Incorrect PIN. ${remaining} attempt${remaining > 1 ? 's' : ''} remaining.`;
+        alertEl.hidden = false;
+      }
+      setTimeout(() => clearPinBoxes('verify'), 400);
+    }
+  }
+}
+
+/** Lock out PIN inputs for specified countdown duration (5 failed attempts) */
+function startPinLockout(seconds) {
+  const banner = document.getElementById('pin-lockout-banner');
+  const timerEl = document.getElementById('pin-lockout-timer');
+  const alertEl = document.getElementById('pin-lock-alert');
+  const boxes = document.querySelectorAll('.pin-digit-box[data-step="verify"]');
+  const keys = document.querySelectorAll('.pin-key');
+
+  if (alertEl) alertEl.hidden = true;
+  boxes.forEach(b => { b.disabled = true; b.classList.add('error'); });
+  keys.forEach(k => { k.disabled = true; });
+
+  let timeLeft = seconds;
+  if (timerEl) timerEl.textContent = timeLeft;
+  if (banner) banner.hidden = false;
+
+  if (lockoutTimerInterval) clearInterval(lockoutTimerInterval);
+
+  lockoutTimerInterval = setInterval(() => {
+    timeLeft--;
+    if (timerEl) timerEl.textContent = timeLeft;
+
+    if (timeLeft <= 0) {
+      clearInterval(lockoutTimerInterval);
+      lockoutTimerInterval = null;
+      failedPinAttempts = 0;
+
+      if (banner) banner.hidden = true;
+      boxes.forEach(b => { b.disabled = false; b.classList.remove('error'); });
+      keys.forEach(k => { k.disabled = false; });
+      clearPinBoxes('verify');
+    }
+  }, 1000);
+}
+
+/** Handle "Forgot PIN?" flow — Log out and prompt password login to reset PIN */
+function handleForgotPin() {
+  isResettingPin = true;
+  isPinUnlocked = false;
+  logoutUser();
+  checkAuthState();
+  showToast('Please log in with your email & password to reset your PIN.', 'info');
 }
 
 /* ── Bootstrap on DOM ready ── */
