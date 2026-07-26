@@ -37,6 +37,74 @@
     </div>
   </div>
 
+  <!-- ===== AUTHENTICATION MODAL OVERLAY ===== -->
+  <div id="auth-modal" class="auth-overlay" role="dialog" aria-modal="true" aria-labelledby="auth-heading">
+    <div class="auth-box card">
+      <div class="auth-header">
+        <div class="brand-logo" aria-hidden="true">💰</div>
+        <h2 id="auth-heading" class="auth-title">Personal Finance Tracker</h2>
+        <p class="auth-subtitle">Sign in or create an account to manage your money</p>
+      </div>
+
+      <!-- Auth Tabs -->
+      <div class="auth-tabs" role="tablist">
+        <button type="button" id="tab-login" class="auth-tab active" role="tab" aria-selected="true" aria-controls="panel-login">Login</button>
+        <button type="button" id="tab-register" class="auth-tab" role="tab" aria-selected="false" aria-controls="panel-register">Sign Up</button>
+      </div>
+
+      <!-- Login Panel -->
+      <div id="panel-login" class="auth-panel" role="tabpanel" aria-labelledby="tab-login">
+        <form id="login-form" class="auth-form" novalidate>
+          <div class="form-group">
+            <label for="login-email" class="form-label">Email Address <span class="required">*</span></label>
+            <input type="email" id="login-email" class="form-input" placeholder="user@example.com" required autocomplete="email" />
+            <span id="login-email-error" class="form-error" hidden></span>
+          </div>
+
+          <div class="form-group">
+            <label for="login-password" class="form-label">Password <span class="required">*</span></label>
+            <input type="password" id="login-password" class="form-input" placeholder="••••••••" required autocomplete="current-password" />
+            <span id="login-password-error" class="form-error" hidden></span>
+          </div>
+
+          <button type="submit" id="login-submit-btn" class="btn btn-primary btn-full auth-btn">
+            <span aria-hidden="true">🔐</span> Login
+          </button>
+        </form>
+      </div>
+
+      <!-- Sign Up Panel -->
+      <div id="panel-register" class="auth-panel" role="tabpanel" aria-labelledby="tab-register" hidden>
+        <form id="register-form" class="auth-form" novalidate>
+          <div class="form-group">
+            <label for="reg-name" class="form-label">Full Name <span class="required">*</span></label>
+            <input type="text" id="reg-name" class="form-input" placeholder="e.g. Alex Johnson" required autocomplete="name" />
+            <span id="reg-name-error" class="form-error" hidden></span>
+          </div>
+
+          <div class="form-group">
+            <label for="reg-email" class="form-label">Email Address <span class="required">*</span></label>
+            <input type="email" id="reg-email" class="form-input" placeholder="user@example.com" required autocomplete="email" />
+            <span id="reg-email-error" class="form-error" hidden></span>
+          </div>
+
+          <div class="form-group">
+            <label for="reg-password" class="form-label">Password <span class="required">*</span></label>
+            <input type="password" id="reg-password" class="form-input" placeholder="At least 8 characters" required minlength="8" autocomplete="new-password" />
+            <span class="form-help">Must be at least 8 characters long</span>
+            <span id="reg-password-error" class="form-error" hidden></span>
+          </div>
+
+          <button type="submit" id="register-submit-btn" class="btn btn-primary btn-full auth-btn">
+            <span aria-hidden="true">✨</span> Create Account
+          </button>
+        </form>
+      </div>
+
+      <div id="auth-alert" class="auth-alert" hidden role="alert"></div>
+    </div>
+  </div>
+
   <!-- ===== APP WRAPPER ===== -->
   <div class="app-wrapper">
 
@@ -63,6 +131,15 @@
 
         <!-- Header Actions -->
         <div class="header-actions">
+          <!-- User Profile Section -->
+          <div id="user-profile-bar" class="user-profile-bar" hidden>
+            <span class="user-avatar" aria-hidden="true">👤</span>
+            <span id="user-display-name" class="user-name">User</span>
+            <button id="logout-btn" class="btn btn-ghost btn-sm logout-btn" type="button" title="Logout securely">
+              <span aria-hidden="true">🚪</span> Logout
+            </button>
+          </div>
+
           <!-- Currency Selector -->
           <div class="currency-selector-wrap">
             <label for="currency-select" class="visually-hidden">Currency</label>
@@ -71,6 +148,8 @@
               <option value="$">$ USD</option>
               <option value="€">€ EUR</option>
               <option value="£">£ GBP</option>
+              <option value="¥">¥ JPY</option>
+              <option value="د.إ">د.إ AED</option>
             </select>
           </div>
 
@@ -133,6 +212,19 @@
               </div>
             </article>
 
+            <!-- Total Investments Card -->
+            <article class="dashboard-card card--investment" id="card-investment" aria-label="Total Investments">
+              <div class="card-icon card-icon--investment" aria-hidden="true">💹</div>
+              <div class="card-body">
+                <span class="card-label">Total Invested</span>
+                <span id="total-investment" class="card-amount card-amount--investment">₹0.00</span>
+              </div>
+              <div class="card-trend" id="investment-trend" aria-hidden="true">
+                <span class="trend-arrow trend--up">↑</span>
+                <span id="investment-pct" class="trend-text">0%</span>
+              </div>
+            </article>
+
             <!-- Savings Card -->
             <article class="dashboard-card card--savings" id="card-savings" aria-label="Savings Rate">
               <div class="card-icon card-icon--savings" aria-hidden="true">🏦</div>
@@ -180,6 +272,9 @@
                     <button type="button" id="type-expense" class="type-btn type-btn--expense" aria-pressed="false" data-type="expense">
                       <span aria-hidden="true">📉</span> Expense
                     </button>
+                    <button type="button" id="type-investment" class="type-btn type-btn--investment" aria-pressed="false" data-type="investment">
+                      <span aria-hidden="true">💹</span> Investment
+                    </button>
                   </div>
                 </div>
 
@@ -190,7 +285,7 @@
                     type="text"
                     id="txn-title"
                     class="form-input"
-                    placeholder="e.g. Monthly Salary, Grocery Bill…"
+                    placeholder="e.g. Monthly Salary, Grocery Bill, Mutual Fund…"
                     maxlength="80"
                     autocomplete="off"
                     aria-required="true"
@@ -229,15 +324,25 @@
                       <option value="Other Income">💡 Other Income</option>
                     </optgroup>
                     <optgroup label="💸 Expenses">
-                      <option value="Food">🍔 Food & Dining</option>
-                      <option value="Rent">🏠 Rent & Housing</option>
+                      <option value="Food">🍔 Food &amp; Dining</option>
+                      <option value="Rent">🏠 Rent &amp; Housing</option>
                       <option value="Transport">🚗 Transport</option>
                       <option value="Shopping">🛍️ Shopping</option>
-                      <option value="Bills">💡 Bills & Utilities</option>
+                      <option value="Bills">💡 Bills &amp; Utilities</option>
                       <option value="Healthcare">🏥 Healthcare</option>
                       <option value="Entertainment">🎮 Entertainment</option>
                       <option value="Education">📚 Education</option>
                       <option value="Others">📦 Others</option>
+                    </optgroup>
+                    <optgroup label="💹 Investments / Savings">
+                      <option value="Stocks &amp; Shares">📈 Stocks &amp; Shares</option>
+                      <option value="Mutual Funds">📊 Mutual Funds</option>
+                      <option value="Fixed Deposit">🏦 Fixed Deposit</option>
+                      <option value="Crypto">🪙 Crypto</option>
+                      <option value="Real Estate">🏢 Real Estate</option>
+                      <option value="Gold">🥇 Gold &amp; Commodities</option>
+                      <option value="Provident Fund">🛡️ Provident Fund (EPF/PPF)</option>
+                      <option value="Other Investment">💎 Other Investment</option>
                     </optgroup>
                   </select>
                   <span id="category-error" class="form-error" role="alert" hidden>Please select a category.</span>
@@ -302,7 +407,11 @@
                   <span id="qs-month-expense" class="qs-value text-expense">₹0.00</span>
                 </li>
                 <li class="quick-stat-item">
-                  <span class="qs-label">💳 Net This Month</span>
+                  <span class="qs-label">💹 Month Investment</span>
+                  <span id="qs-month-investment" class="qs-value text-investment">₹0.00</span>
+                </li>
+                <li class="quick-stat-item">
+                  <span class="qs-label">💳 Net Cash Flow</span>
                   <span id="qs-month-net" class="qs-value">₹0.00</span>
                 </li>
                 <li class="quick-stat-item">
@@ -348,7 +457,7 @@
                     <option value="Investments">📊 Investments</option>
                     <option value="Gifts">🎁 Gifts</option>
                     <option value="Other Income">💡 Other Income</option>
-                    <option value="Food">🍔 Food & Dining</option>
+                    <option value="Food">🍔 Food &amp; Dining</option>
                     <option value="Rent">🏠 Rent</option>
                     <option value="Transport">🚗 Transport</option>
                     <option value="Shopping">🛍️ Shopping</option>
@@ -357,6 +466,14 @@
                     <option value="Entertainment">🎮 Entertainment</option>
                     <option value="Education">📚 Education</option>
                     <option value="Others">📦 Others</option>
+                    <option value="Stocks &amp; Shares">📈 Stocks &amp; Shares</option>
+                    <option value="Mutual Funds">📊 Mutual Funds</option>
+                    <option value="Fixed Deposit">🏦 Fixed Deposit</option>
+                    <option value="Crypto">🪙 Crypto</option>
+                    <option value="Real Estate">🏢 Real Estate</option>
+                    <option value="Gold">🥇 Gold</option>
+                    <option value="Provident Fund">🛡️ Provident Fund</option>
+                    <option value="Other Investment">💎 Other Investment</option>
                   </select>
                 </div>
 
@@ -369,6 +486,7 @@
                   <button type="button" id="filter-all" class="filter-type-btn active" data-filter="all">All</button>
                   <button type="button" id="filter-income" class="filter-type-btn" data-filter="income">📈 Income</button>
                   <button type="button" id="filter-expense" class="filter-type-btn" data-filter="expense">📉 Expense</button>
+                  <button type="button" id="filter-investment" class="filter-type-btn" data-filter="investment">💹 Investment</button>
                 </div>
 
                 <!-- Date Filter -->
